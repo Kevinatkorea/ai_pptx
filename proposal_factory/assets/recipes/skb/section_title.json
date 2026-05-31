@@ -1,0 +1,12 @@
+{
+  "type": "section_title",
+  "desc": "SKB section_title (slide4)",
+  "template_slide": "ppt/slides/slide4.xml",
+  "ops": [
+    {
+      "op": "text_inject",
+      "slot": "title",
+      "from": "title"
+    }
+  ]
+}

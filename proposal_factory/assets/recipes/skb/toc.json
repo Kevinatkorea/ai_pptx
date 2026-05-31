@@ -1,0 +1,22 @@
+{
+  "type": "toc",
+  "desc": "SKB toc (slide2)",
+  "template_slide": "ppt/slides/slide2.xml",
+  "ops": [
+    {
+      "op": "group_fill",
+      "slot": "toc_part1",
+      "from": "toc_part1"
+    },
+    {
+      "op": "group_fill",
+      "slot": "toc_part2",
+      "from": "toc_part2"
+    },
+    {
+      "op": "group_fill",
+      "slot": "toc_part3",
+      "from": "toc_part3"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "type": "body_block",
+  "desc": "SKB body_block (slide10)",
+  "template_slide": "ppt/slides/slide10.xml",
+  "ops": [
+    {
+      "op": "group_fill",
+      "slot": "body",
+      "from": "body"
+    }
+  ]
+}

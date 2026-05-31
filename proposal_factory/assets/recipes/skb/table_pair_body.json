@@ -1,0 +1,22 @@
+{
+  "type": "table_pair_body",
+  "desc": "SKB table_pair_body (slide8)",
+  "template_slide": "ppt/slides/slide8.xml",
+  "ops": [
+    {
+      "op": "group_fill",
+      "slot": "main_table",
+      "from": "main_table"
+    },
+    {
+      "op": "text_inject",
+      "slot": "body",
+      "from": "body"
+    },
+    {
+      "op": "group_fill",
+      "slot": "sub_table",
+      "from": "sub_table"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "type": "asis_tobe",
+  "desc": "SKB asis_tobe (slide11)",
+  "template_slide": "ppt/slides/slide11.xml",
+  "ops": [
+    {
+      "op": "text_inject",
+      "slot": "asis",
+      "from": "asis"
+    },
+    {
+      "op": "text_inject",
+      "slot": "tobe",
+      "from": "tobe"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "type": "eval_keypoint",
+  "desc": "SKB eval_keypoint (slide42)",
+  "template_slide": "ppt/slides/slide42.xml",
+  "ops": [
+    {
+      "op": "text_inject",
+      "slot": "eval_item",
+      "from": "eval_item"
+    },
+    {
+      "op": "text_inject",
+      "slot": "key_point",
+      "from": "key_point"
+    },
+    {
+      "op": "text_inject",
+      "slot": "title",
+      "from": "title"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "type": "device_table_image",
+  "desc": "SKB device_table_image (slide19)",
+  "template_slide": "ppt/slides/slide19.xml",
+  "ops": [
+    {
+      "op": "table_rebuild",
+      "slot": "main_table",
+      "from": "main_table"
+    },
+    {
+      "op": "image_reuse",
+      "slot": "device_image",
+      "from": "device_image"
+    },
+    {
+      "op": "text_inject",
+      "slot": "device_info",
+      "from": "device_info"
+    }
+  ]
+}

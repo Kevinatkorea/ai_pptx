@@ -1,0 +1,22 @@
+{
+  "type": "asis_tobe_summary",
+  "desc": "SKB asis_tobe_summary (slide12)",
+  "template_slide": "ppt/slides/slide12.xml",
+  "ops": [
+    {
+      "op": "text_inject",
+      "slot": "tobe",
+      "from": "tobe"
+    },
+    {
+      "op": "group_fill",
+      "slot": "asis_summary",
+      "from": "asis_summary"
+    },
+    {
+      "op": "group_fill",
+      "slot": "tobe_summary",
+      "from": "tobe_summary"
+    }
+  ]
+}

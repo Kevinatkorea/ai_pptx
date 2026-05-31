@@ -1,0 +1,17 @@
+{
+  "type": "cover",
+  "desc": "SKB cover (slide1)",
+  "template_slide": "ppt/slides/slide1.xml",
+  "ops": [
+    {
+      "op": "group_fill",
+      "slot": "title",
+      "from": "title"
+    },
+    {
+      "op": "group_fill",
+      "slot": "subtitle",
+      "from": "subtitle"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "type": "lead_body",
+  "desc": "SKB lead_body (slide35)",
+  "template_slide": "ppt/slides/slide35.xml",
+  "ops": [
+    {
+      "op": "text_inject",
+      "slot": "lead",
+      "from": "lead"
+    },
+    {
+      "op": "group_fill",
+      "slot": "body",
+      "from": "body"
+    }
+  ]
+}

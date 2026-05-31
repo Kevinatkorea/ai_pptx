@@ -1,0 +1,22 @@
+{
+  "type": "device_table_dual",
+  "desc": "SKB device_table_dual (slide20)",
+  "template_slide": "ppt/slides/slide20.xml",
+  "ops": [
+    {
+      "op": "group_fill",
+      "slot": "device_image1",
+      "from": "device_image1"
+    },
+    {
+      "op": "group_fill",
+      "slot": "device_image2",
+      "from": "device_image2"
+    },
+    {
+      "op": "table_rebuild",
+      "slot": "main_table",
+      "from": "main_table"
+    }
+  ]
+}

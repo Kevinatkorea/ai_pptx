@@ -1,0 +1,134 @@
+[
+  {
+    "type": "cover",
+    "desc": "SKB cover (slide1)",
+    "match": {},
+    "recipe": "recipes/skb/cover.json"
+  },
+  {
+    "type": "toc",
+    "desc": "SKB toc (slide2)",
+    "match": {},
+    "recipe": "recipes/skb/toc.json"
+  },
+  {
+    "type": "part_divider",
+    "desc": "SKB part_divider (slide3)",
+    "match": {},
+    "recipe": "recipes/skb/part_divider.json"
+  },
+  {
+    "type": "section_title",
+    "desc": "SKB section_title (slide4)",
+    "match": {},
+    "recipe": "recipes/skb/section_title.json"
+  },
+  {
+    "type": "action_grid_4",
+    "desc": "SKB action_grid_4 (slide6)",
+    "match": {},
+    "recipe": "recipes/skb/action_grid_4.json"
+  },
+  {
+    "type": "list_two_col",
+    "desc": "SKB list_two_col (slide7)",
+    "match": {},
+    "recipe": "recipes/skb/list_two_col.json"
+  },
+  {
+    "type": "table_pair_body",
+    "desc": "SKB table_pair_body (slide8)",
+    "match": {},
+    "recipe": "recipes/skb/table_pair_body.json"
+  },
+  {
+    "type": "list_full_two_col",
+    "desc": "SKB list_full_two_col (slide9)",
+    "match": {},
+    "recipe": "recipes/skb/list_full_two_col.json"
+  },
+  {
+    "type": "body_block",
+    "desc": "SKB body_block (slide10)",
+    "match": {},
+    "recipe": "recipes/skb/body_block.json"
+  },
+  {
+    "type": "asis_tobe",
+    "desc": "SKB asis_tobe (slide11)",
+    "match": {},
+    "recipe": "recipes/skb/asis_tobe.json"
+  },
+  {
+    "type": "asis_tobe_summary",
+    "desc": "SKB asis_tobe_summary (slide12)",
+    "match": {},
+    "recipe": "recipes/skb/asis_tobe_summary.json"
+  },
+  {
+    "type": "body_with_head_text",
+    "desc": "SKB body_with_head_text (slide15)",
+    "match": {},
+    "recipe": "recipes/skb/body_with_head_text.json"
+  },
+  {
+    "type": "body_with_head_block",
+    "desc": "SKB body_with_head_block (slide16)",
+    "match": {},
+    "recipe": "recipes/skb/body_with_head_block.json"
+  },
+  {
+    "type": "two_items",
+    "desc": "SKB two_items (slide18)",
+    "match": {},
+    "recipe": "recipes/skb/two_items.json"
+  },
+  {
+    "type": "device_table_image",
+    "desc": "SKB device_table_image (slide19)",
+    "match": {},
+    "recipe": "recipes/skb/device_table_image.json"
+  },
+  {
+    "type": "device_table_dual",
+    "desc": "SKB device_table_dual (slide20)",
+    "match": {},
+    "recipe": "recipes/skb/device_table_dual.json"
+  },
+  {
+    "type": "lead_body",
+    "desc": "SKB lead_body (slide35)",
+    "match": {},
+    "recipe": "recipes/skb/lead_body.json"
+  },
+  {
+    "type": "lead_title",
+    "desc": "SKB lead_title (slide37)",
+    "match": {},
+    "recipe": "recipes/skb/lead_title.json"
+  },
+  {
+    "type": "eval_keypoint",
+    "desc": "SKB eval_keypoint (slide42)",
+    "match": {},
+    "recipe": "recipes/skb/eval_keypoint.json"
+  },
+  {
+    "type": "device_title_table",
+    "desc": "SKB device_title_table (slide43)",
+    "match": {},
+    "recipe": "recipes/skb/device_title_table.json"
+  },
+  {
+    "type": "closing_messages3",
+    "desc": "SKB closing_messages3 (slide44)",
+    "match": {},
+    "recipe": "recipes/skb/closing_messages3.json"
+  },
+  {
+    "type": "closing_messages2",
+    "desc": "SKB closing_messages2 (slide53)",
+    "match": {},
+    "recipe": "recipes/skb/closing_messages2.json"
+  }
+]

@@ -1,0 +1,22 @@
+{
+  "type": "list_two_col",
+  "desc": "SKB list_two_col (slide7)",
+  "template_slide": "ppt/slides/slide7.xml",
+  "ops": [
+    {
+      "op": "group_fill",
+      "slot": "list_right",
+      "from": "list_right"
+    },
+    {
+      "op": "group_fill",
+      "slot": "list_left_head",
+      "from": "list_left_head"
+    },
+    {
+      "op": "group_fill",
+      "slot": "list_right_head",
+      "from": "list_right_head"
+    }
+  ]
+}

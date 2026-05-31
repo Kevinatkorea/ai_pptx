@@ -1,0 +1,17 @@
+{
+  "type": "body_with_head_text",
+  "desc": "SKB body_with_head_text (slide15)",
+  "template_slide": "ppt/slides/slide15.xml",
+  "ops": [
+    {
+      "op": "group_fill",
+      "slot": "body_head",
+      "from": "body_head"
+    },
+    {
+      "op": "text_inject",
+      "slot": "body",
+      "from": "body"
+    }
+  ]
+}

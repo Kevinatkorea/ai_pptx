@@ -1,0 +1,52 @@
+{
+  "type": "action_grid_4",
+  "desc": "SKB action_grid_4 (slide6)",
+  "template_slide": "ppt/slides/slide6.xml",
+  "ops": [
+    {
+      "op": "group_fill",
+      "slot": "title",
+      "from": "title"
+    },
+    {
+      "op": "group_fill",
+      "slot": "action3_head",
+      "from": "action3_head"
+    },
+    {
+      "op": "group_fill",
+      "slot": "action4_head",
+      "from": "action4_head"
+    },
+    {
+      "op": "group_fill",
+      "slot": "action1_head",
+      "from": "action1_head"
+    },
+    {
+      "op": "group_fill",
+      "slot": "action2_head",
+      "from": "action2_head"
+    },
+    {
+      "op": "group_fill",
+      "slot": "action3_body",
+      "from": "action3_body"
+    },
+    {
+      "op": "group_fill",
+      "slot": "action4_body",
+      "from": "action4_body"
+    },
+    {
+      "op": "group_fill",
+      "slot": "action1_body",
+      "from": "action1_body"
+    },
+    {
+      "op": "group_fill",
+      "slot": "action2_body",
+      "from": "action2_body"
+    }
+  ]
+}

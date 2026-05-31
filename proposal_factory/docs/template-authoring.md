@@ -321,7 +321,30 @@ print(man["status"])                          # ready_for_review / needs_human_a
 
 ---
 
-## 11. 참고
+## 11. SKB 표준 템플릿 타입 라이브러리
+
+`assets/page_types.skb.json` + `assets/recipes/skb/*.json` — SKB 디자인가이드2.0(53슬라이드,
+슬롯 102개)에서 식별한 **22종 타입**의 레시피. 각 레시피는 대표 슬라이드(`template_slide`)와
+슬롯별 op(sp→`text_inject`, grpSp→`group_fill`, 표→`table_rebuild`, 이미지→`image_reuse`)로
+구성되며, 실제 템플릿 변환으로 전수 검증됐다. 운영 시:
+```python
+from engine import pipeline
+recipes = {r["type"]: json.load(open(f"assets/recipes/skb/{r['type']}.json"))
+           for r in json.load(open("assets/page_types.skb.json"))}
+assets = {"page_types": json.load(open("assets/page_types.skb.json")),
+          "recipes": recipes, "base_dir": "assets"}
+res = pipeline.run_deck(draft_slides, assets, cfg, gateway,
+                        std_template_pptx="<디자인가이드2.0.pptx>",
+                        forced_types={0: "asis_tobe", 1: "section_title", ...})  # 운영자 페이지별 지정
+```
+주요 타입: cover·toc·part_divider·section_title·asis_tobe·asis_tobe_summary·body_block·
+body_with_head_(text|block)·list_two_col·list_full_two_col·table_pair_body·device_table_(image|dual)·
+device_title_table·action_grid_4·two_items·lead_(body|title)·eval_keypoint·closing_messages(2|3).
+
+> 미해결: `match` 는 비어 있음(운영자 페이지별 지정 사용 — 시그니처로는 grouped 텍스트 타입 구분 불가).
+> `group_fill` 슬롯의 초안→배열 자동 매핑은 미구현(현재 text_inject 슬롯만 verbatim 자동, 그룹은 사이드카/명시).
+
+## 12. 참고
 
 - 코드: `engine/transform.py`, `engine/pipeline.py`
 - 스키마: `schemas/source_slots.schema.json`, `schemas/page_recipe.schema.json`, `schemas/job_manifest.schema.json`

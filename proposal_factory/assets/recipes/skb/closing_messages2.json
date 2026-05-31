@@ -1,0 +1,17 @@
+{
+  "type": "closing_messages2",
+  "desc": "SKB closing_messages2 (slide53)",
+  "template_slide": "ppt/slides/slide53.xml",
+  "ops": [
+    {
+      "op": "group_fill",
+      "slot": "message2",
+      "from": "message2"
+    },
+    {
+      "op": "group_fill",
+      "slot": "message1",
+      "from": "message1"
+    }
+  ]
+}

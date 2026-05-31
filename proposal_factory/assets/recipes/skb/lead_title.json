@@ -1,0 +1,17 @@
+{
+  "type": "lead_title",
+  "desc": "SKB lead_title (slide37)",
+  "template_slide": "ppt/slides/slide37.xml",
+  "ops": [
+    {
+      "op": "text_inject",
+      "slot": "lead",
+      "from": "lead"
+    },
+    {
+      "op": "text_inject",
+      "slot": "title",
+      "from": "title"
+    }
+  ]
+}

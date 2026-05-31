@@ -1,0 +1,22 @@
+{
+  "type": "device_title_table",
+  "desc": "SKB device_title_table (slide43)",
+  "template_slide": "ppt/slides/slide43.xml",
+  "ops": [
+    {
+      "op": "table_rebuild",
+      "slot": "main_table",
+      "from": "main_table"
+    },
+    {
+      "op": "text_inject",
+      "slot": "title",
+      "from": "title"
+    },
+    {
+      "op": "group_fill",
+      "slot": "device_info",
+      "from": "device_info"
+    }
+  ]
+}

@@ -788,3 +788,30 @@ run_selfcheck/run_pipeline_demo([6][7])/run_transform_demo/run_ai_demo([9b])/run
 - 분류 충돌: 시그니처 5개로 grouped 텍스트 타입 구분 불가 → 당분간 운영자 지정. 내용기반 LLM 분류는 보류.
 - 타입 카탈로그(2.0 슬롯셋): 표지/목차/파트간지/asis_tobe/본문(body_head+body)/좌우리스트/액션4분할/장비표 등 ~10종.
 - 그룹 자동 매핑(초안→group_fill 배열)은 미구현 — 현재 group_fill 값은 명시 source_slots/사이드카.
+
+---
+
+# 라운드 — SKB 표준 템플릿 타입 라이브러리 22종 작성·검증
+
+디자인가이드2.0(슬롯 102개/38슬라이드)에서 구분되는 슬롯셋 22종 식별 → 타입별 recipe 자동 생성
+(슬롯 태그 기반 op: sp→text_inject, grpSp→group_fill, 표→table_rebuild, 이미지→image_reuse) →
+**실제 템플릿 슬라이드 변환으로 22/22 전수 검증** → 자산 저장.
+
+## 산출물
+- `assets/recipes/skb/*.json` — 22 recipe(cover/toc/part_divider/section_title/asis_tobe/
+  asis_tobe_summary/body_block/body_with_head_text|block/list_two_col/list_full_two_col/
+  table_pair_body/device_table_image|dual/device_title_table/action_grid_4/two_items/
+  lead_body|title/eval_keypoint/closing_messages2|3).
+- `assets/page_types.skb.json` — 22종 등록(match 비움 = 운영자 페이지별 지정).
+- `docs/template-authoring.md` 11장: 라이브러리 사용법.
+
+## 검증
+- recipe 생성 시 각 타입을 실제 디자인가이드2.0 슬라이드로 transform → 22/22 오류 없음.
+- run_deck 실파일(운영자 지정 forced_types): p0 asis_tobe→out+lint PASS, p1 section_title→out+lint
+  FAIL→needs_human_approval(설계대로 사람 검수 라우팅). verbatim·1:1·operator source 확인.
+- 6종 셀프체크 회귀 PASS(자산 추가는 셀프체크 무영향).
+
+## 남은 것
+- 표준 템플릿 pptx(디자인가이드2.0, 8.9MB)는 미커밋(사용자 자산) — recipe 는 그 내부 슬라이드 경로 참조,
+  런타임에 std_template_pptx 로 제공.
+- group_fill 슬롯의 초안→배열 자동 매핑, 단일 파일 덱 조립 + 이미지 carry-over(후속).

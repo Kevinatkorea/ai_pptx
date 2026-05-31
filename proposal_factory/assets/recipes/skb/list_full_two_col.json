@@ -1,0 +1,32 @@
+{
+  "type": "list_full_two_col",
+  "desc": "SKB list_full_two_col (slide9)",
+  "template_slide": "ppt/slides/slide9.xml",
+  "ops": [
+    {
+      "op": "group_fill",
+      "slot": "list_right",
+      "from": "list_right"
+    },
+    {
+      "op": "group_fill",
+      "slot": "list_left_head",
+      "from": "list_left_head"
+    },
+    {
+      "op": "group_fill",
+      "slot": "list_right_head",
+      "from": "list_right_head"
+    },
+    {
+      "op": "group_fill",
+      "slot": "body_title",
+      "from": "body_title"
+    },
+    {
+      "op": "group_fill",
+      "slot": "list_left",
+      "from": "list_left"
+    }
+  ]
+}

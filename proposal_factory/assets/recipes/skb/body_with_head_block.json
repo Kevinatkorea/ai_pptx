@@ -1,0 +1,17 @@
+{
+  "type": "body_with_head_block",
+  "desc": "SKB body_with_head_block (slide16)",
+  "template_slide": "ppt/slides/slide16.xml",
+  "ops": [
+    {
+      "op": "group_fill",
+      "slot": "body",
+      "from": "body"
+    },
+    {
+      "op": "group_fill",
+      "slot": "body_head",
+      "from": "body_head"
+    }
+  ]
+}

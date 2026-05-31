@@ -1,0 +1,17 @@
+{
+  "type": "two_items",
+  "desc": "SKB two_items (slide18)",
+  "template_slide": "ppt/slides/slide18.xml",
+  "ops": [
+    {
+      "op": "text_inject",
+      "slot": "body_item1",
+      "from": "body_item1"
+    },
+    {
+      "op": "text_inject",
+      "slot": "body_item2",
+      "from": "body_item2"
+    }
+  ]
+}

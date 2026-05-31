@@ -1,0 +1,22 @@
+{
+  "type": "part_divider",
+  "desc": "SKB part_divider (slide3)",
+  "template_slide": "ppt/slides/slide3.xml",
+  "ops": [
+    {
+      "op": "group_fill",
+      "slot": "part_no",
+      "from": "part_no"
+    },
+    {
+      "op": "text_inject",
+      "slot": "part_title",
+      "from": "part_title"
+    },
+    {
+      "op": "group_fill",
+      "slot": "items",
+      "from": "items"
+    }
+  ]
+}

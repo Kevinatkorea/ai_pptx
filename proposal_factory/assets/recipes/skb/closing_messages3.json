@@ -1,0 +1,27 @@
+{
+  "type": "closing_messages3",
+  "desc": "SKB closing_messages3 (slide44)",
+  "template_slide": "ppt/slides/slide44.xml",
+  "ops": [
+    {
+      "op": "text_inject",
+      "slot": "title",
+      "from": "title"
+    },
+    {
+      "op": "group_fill",
+      "slot": "message1",
+      "from": "message1"
+    },
+    {
+      "op": "group_fill",
+      "slot": "message2",
+      "from": "message2"
+    },
+    {
+      "op": "group_fill",
+      "slot": "message3",
+      "from": "message3"
+    }
+  ]
+}
