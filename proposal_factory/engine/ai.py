@@ -19,7 +19,7 @@ import urllib.request
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _DEFAULT_SPEND_PATH = os.path.join(_ROOT, "logs", "ai_spend.json")
 
-_VALID_OPS = {"text_inject", "table_rebuild", "image_reuse", "shape_rebuild"}
+_VALID_OPS = {"text_inject", "group_fill", "table_rebuild", "image_reuse", "shape_rebuild"}
 
 
 def _stdlib_http(method, url, headers=None, json_body=None, timeout=30):

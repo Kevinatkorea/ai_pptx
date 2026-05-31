@@ -165,6 +165,45 @@ def _op_text_inject(op, src, state):
     state["slide_xml"] = xml[:st] + new_block + xml[en:]
 
 
+# ---------- (1b) group_fill — 그룹 내부 텍스트박스 채우기 ----------
+
+def _fill_inner_texts(group_block, values):
+    """그룹 블록 내부의 <p:sp> 텍스트박스들을 values(verbatim, 문서 순서)로 채운다.
+    값 개수보다 많은 텍스트박스는 원본 유지. 그룹의 비텍스트 도형/구조는 보존."""
+    out, i, vi = [], 0, 0
+    while True:
+        m = re.search(r'<p:sp\b', group_block[i:])
+        if not m:
+            out.append(group_block[i:])
+            break
+        st = i + m.start()
+        en = _match_block(group_block, st, "sp")
+        out.append(group_block[i:st])
+        sp_block = group_block[st:en]
+        if "<p:txBody>" in sp_block and vi < len(values):
+            sp_block = _replace_text(sp_block, values[vi])
+            vi += 1
+        out.append(sp_block)
+        i = en
+    return "".join(out)
+
+
+def _op_group_fill(op, src, state):
+    value = _get_field(src, op["from"])
+    if value is None:
+        values = []
+    elif isinstance(value, list):
+        values = [str(v) for v in value]
+    else:
+        values = [str(value)]
+    if op.get("rule") == "one_line":
+        values = [" ".join(v.split()) for v in values]
+    xml = state["slide_xml"]
+    st, en, block, _tag = _find_slot(xml, op["slot"])
+    new_block = _fill_inner_texts(block, values)
+    state["slide_xml"] = xml[:st] + new_block + xml[en:]
+
+
 # ---------- (2) table_rebuild ----------
 
 def _make_cell(text: str, fill: str = None, sz: int = 900) -> str:
@@ -384,6 +423,7 @@ def _op_shape_rebuild(op, src, state):
 
 _OPS = {
     "text_inject": _op_text_inject,
+    "group_fill": _op_group_fill,
     "table_rebuild": _op_table_rebuild,
     "image_reuse": _op_image_reuse,
     "shape_rebuild": _op_shape_rebuild,

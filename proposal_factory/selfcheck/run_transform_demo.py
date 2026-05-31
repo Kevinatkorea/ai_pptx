@@ -368,6 +368,44 @@ def main():
         assert_true(any(n.startswith("ppt/media/") for n in names2),
                     "다중 슬라이드 미디어 첨부", errors)
 
+        print("\n[9] group_fill — 그룹 내부 텍스트박스 순서대로 verbatim 채움")
+        # slot:grp 그룹 안에 sp 2개(텍스트박스) 를 가진 미니 슬라이드
+        grp_slide = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+       xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+       xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+<p:cSld><p:spTree>
+<p:nvGrpSpPr><p:cNvPr id="1" name="Group"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>
+<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>
+<p:grpSp>
+<p:nvGrpSpPr><p:cNvPr id="2" name="slot:grp"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>
+<p:grpSpPr><a:xfrm><a:off x="100" y="100"/><a:ext cx="500" cy="500"/><a:chOff x="0" y="0"/><a:chExt cx="500" cy="500"/></a:xfrm></p:grpSpPr>
+<p:sp><p:nvSpPr><p:cNvPr id="3" name="head"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr>
+<p:spPr><a:xfrm><a:off x="100" y="100"/><a:ext cx="500" cy="200"/></a:xfrm></p:spPr>
+<p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="ko-KR"/><a:t>(머리말)</a:t></a:r></a:p></p:txBody></p:sp>
+<p:sp><p:nvSpPr><p:cNvPr id="4" name="body"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr>
+<p:spPr><a:xfrm><a:off x="100" y="320"/><a:ext cx="500" cy="200"/></a:xfrm></p:spPr>
+<p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="ko-KR"/><a:t>(본문)</a:t></a:r></a:p></p:txBody></p:sp>
+</p:grpSp>
+</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>"""
+        gtree = os.path.join(tmp, "gtree")
+        for rel, content in {"[Content_Types].xml": CONTENT_TYPES,
+                             "ppt/presentation.xml": PRESENTATION_XML,
+                             "ppt/slides/slide1.xml": grp_slide,
+                             "ppt/slides/_rels/slide1.xml.rels": SLIDE1_RELS}.items():
+            p = os.path.join(gtree, rel)
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            open(p, "w", encoding="utf-8").write(content)
+        grp_recipe = {"type": "g", "template_slide": "ppt/slides/slide1.xml",
+                      "ops": [{"op": "group_fill", "slot": "grp", "from": "lines"}]}
+        gout = os.path.join(tmp, "gout.pptx")
+        transform.apply(grp_recipe, {"lines": ["새 머리말ZZ", "새 본문YY"]}, gtree, gout, CFG)
+        gx = zipfile.ZipFile(gout).read("ppt/slides/slide1.xml").decode("utf-8")
+        assert_true("새 머리말ZZ" in gx, "그룹 박스1 verbatim 채움", errors)
+        assert_true("새 본문YY" in gx, "그룹 박스2 verbatim 채움", errors)
+        assert_true("(머리말)" not in gx and "(본문)" not in gx, "원본 텍스트 치환됨", errors)
+        assert_true(gx.count("<p:txBody>") == 2, "그룹 구조(박스 2개) 보존", errors)
+
         print("\n=== TRANSFORM SELF-CHECK:",
               "PASS" if not errors else f"FAIL ({len(errors)})", "===")
         sys.exit(0 if not errors else 1)

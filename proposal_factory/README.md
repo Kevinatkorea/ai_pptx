@@ -18,7 +18,7 @@ proposal_factory/
     geometry.py          슬라이드 XML → 도형 bbox·문단·표높이 추출
     linter.py            레이아웃 린터 v1 (잉크 박스 기반 5종 검사)
     classify.py          페이지 유형 분류(결정론 + LLM 폴백)
-    transform.py         레시피 적용(4대 변환연산 + 다중 슬라이드 template_slides[])
+    transform.py         레시피 적용(text_inject·group_fill·table_rebuild·image_reuse·shape_rebuild + 다중 슬라이드)
     capture.py           검증 직전 캡처(PNG + 기하 스냅샷)
     learn.py             직원 수정 diff → 교정 기록(학습)
     pipeline.py          오케스트레이터(ingest→classify→transform→capture→lint→route)
@@ -92,6 +92,8 @@ proposal_factory/
 다중 페이지 덱 + 콘텐츠 매핑(1:1):
 - **다중 페이지 분류**(`pipeline.classify_deck`): 덱의 각 슬라이드를 1:1로 독립 분류 → `manifest.pages[]`(페이지별 유형·신뢰도·레시피 유무). 데몬이 다중 슬라이드 .pptx 를 자동으로 이 경로로 처리.
 - **AI 콘텐츠 매핑**(`ai.map_content` + `pipeline.run_deck`): 초안 페이지의 텍스트를 표준 템플릿 슬롯에 배정해 변환. **문구 변경 없음** — LLM 은 "어느 초안 블록 → 어느 슬롯"의 **인덱스만** 결정하고, 실제 텍스트 값은 초안에서 **그대로(verbatim)** 복사한다. 게이트웨이가 없거나 보안망이면 **순서 기반(positional) 폴백**으로 오프라인 동작. 페이지는 1:1(분리/병합 없음).
+  - **운영자 페이지별 타입 지정**: 시그니처로 구분이 어려운 grouped 텍스트 타입들이 많아, `run_deck(forced_types=...)` 로 페이지마다 타입을 명시 지정할 수 있다(분류 우회, `source="operator"`).
+  - **`group_fill` op**: 슬롯이 그룹(`grpSp`)이면 내부 텍스트박스들을 입력 배열로 **순서대로 verbatim** 채운다(text_inject 는 단일 텍스트박스 전용). 그룹의 비텍스트 도형/구조는 보존.
   - 단일 파일 덱 조립과 초안 이미지 carry-over(원위치 그대로)는 실파일 검증이 필요한 후속 패키징 단계 — 현재 `run_deck` 은 페이지별 표준화 출력을 생성한다.
 
 HTTP 는 표준 라이브러리(urllib) 만 사용. anthropic SDK 등 외부 의존성 없음.

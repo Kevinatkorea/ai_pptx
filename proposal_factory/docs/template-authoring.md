@@ -125,6 +125,14 @@
   - `"one_line"` — 모든 공백·줄바꿈을 단일 공백으로 압축 (KEY POINT 등 한 줄 보장).
 - 폰트/색/사이즈는 템플릿의 첫 `<a:rPr>` 속성을 그대로 보존.
 
+#### (1b) `group_fill` — 그룹 내부 텍스트박스 채우기
+```json
+{"op": "group_fill", "slot": "asis_summary", "from": "asis_lines"}
+```
+- 슬롯이 그룹(`<p:grpSp>`)일 때 사용. `text_inject` 는 단일 텍스트박스(`<p:sp>`) 전용이라 그룹은 못 채운다.
+- `from` 값이 배열이면 그룹 내부 텍스트박스를 **문서 순서대로** 채우고, 문자열이면 첫 박스만 채운다(둘 다 **문구 verbatim**).
+- 그룹의 아이콘·도형·구조는 보존. 값 개수보다 많은 박스는 원본 유지.
+
 #### (2) `table_rebuild` — 표 본문 재생성
 ```json
 {"op": "table_rebuild", "slot": "company_overview", "from": "company_fields",

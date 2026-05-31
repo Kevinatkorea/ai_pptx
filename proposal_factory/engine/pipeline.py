@@ -98,11 +98,23 @@ def build_page_source_slots(draft_shapes, recipe, gateway=None):
     return src, method
 
 
-def run_deck(slides, assets, cfg, gateway, std_template_pptx, workdir):
-    """1:1 다중 페이지 변환. 페이지별: 분류 → (text)verbatim 매핑 → 표준 템플릿 변환 → 린트.
+def _forced_type(i, forced_types):
+    """페이지 i 의 운영자 지정 타입(있으면). forced_types: list[idx] 또는 dict{idx|str:type}."""
+    if not forced_types:
+        return None
+    if isinstance(forced_types, dict):
+        return forced_types.get(i) or forced_types.get(str(i))
+    if isinstance(forced_types, list) and i < len(forced_types):
+        return forced_types[i] or None
+    return None
+
+
+def run_deck(slides, assets, cfg, gateway, std_template_pptx, workdir, forced_types=None):
+    """1:1 다중 페이지 변환. 페이지별: (분류 또는 운영자 지정) → verbatim 매핑 → 표준 템플릿 변환 → 린트.
 
     페이지는 1:1(분리/병합 없음). 각 페이지를 그 유형의 표준 템플릿 슬라이드로 변환해
     `<workdir>/page_<i>.pptx` 로 출력한다(단일 파일 조립·이미지 carry-over 는 후속 패키징).
+    forced_types 가 주어지면 그 페이지는 분류 대신 지정 타입 사용(운영자 페이지별 지정).
     반환 manifest 조각: {kind:"deck", page_count, pages:[...], status}.
     """
     os.makedirs(workdir, exist_ok=True)
@@ -110,7 +122,11 @@ def run_deck(slides, assets, cfg, gateway, std_template_pptx, workdir):
     any_fail = any_unknown = False
     for i, sl in enumerate(slides):
         shapes = sl.get("shapes", [])
-        ptype, conf, src = classify.classify(shapes, assets["page_types"], gateway)
+        forced = _forced_type(i, forced_types)
+        if forced:
+            ptype, conf, src = forced, 1.0, "operator"
+        else:
+            ptype, conf, src = classify.classify(shapes, assets["page_types"], gateway)
         page = {"index": i, "slide_path": sl.get("slide_path"),
                 "page_type": ptype, "confidence": conf, "source": src}
         recipe = None if ptype == "unknown" else _resolve_recipe(ptype, assets)

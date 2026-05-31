@@ -474,6 +474,23 @@ def main():
             print(f"   ✗ 실패: bc_block={bc_block[:80]!r}"); ok = False
         else:
             print("   ✓ 통과 (AI 인덱스 배정 준수 + 문구 변경 0)")
+
+        # (c) 운영자 페이지별 타입 지정(forced_types) — 분류 대신 지정 타입 사용
+        # page0 도형은 표 없음(원래 doc 매칭) 이지만 운영자가 'doc' 로 명시 지정
+        res_op = pipeline.run_deck([{"slide_path": "ppt/slides/slide1.xml",
+                                     "shapes": p0, "size": SIZE}],
+                                   {"page_types": [], "recipes": {"doc": recipe_doc},
+                                    "base_dir": tmp5},
+                                   CFG, None, std2, os.path.join(tmp5, "deck_op"),
+                                   forced_types={0: "doc"})
+        po = res_op["pages"][0]
+        ok7c = (po.get("source") == "operator" and po.get("page_type") == "doc"
+                and po.get("transform", {}).get("recipe") == "doc")
+        print(f"\n[7c] 운영자 지정 → source={po.get('source')} type={po.get('page_type')} (page_types 비어도 변환)")
+        if not ok7c:
+            print(f"   ✗ 실패: {po}"); ok = False
+        else:
+            print("   ✓ 통과 (forced_types 로 분류 우회·지정 타입 변환)")
     finally:
         shutil.rmtree(tmp5, ignore_errors=True)
 

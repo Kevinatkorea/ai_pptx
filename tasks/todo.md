@@ -762,3 +762,29 @@ run_selfcheck/run_pipeline_demo([6][7])/run_transform_demo/run_ai_demo([9b])/run
   페이지별 표준화 출력을 생성(핵심 지능: verbatim 매핑·1:1 변환은 검증 완료).
 - 표/구조(shape_rebuild) 슬롯의 매핑(현재 text_inject 슬롯 중심).
 - 데몬 deck→run_deck 자동 결선(현재 deck 은 분류까지; run_deck 은 직접 호출/셀프체크로 검증).
+
+---
+
+# 라운드 — group_fill op + 운영자 페이지별 타입 지정 (디자인가이드2.0 실템플릿 대응)
+
+실제 SKB 표준 템플릿(디자인가이드2.0.pptx) 분석 결과: 슬롯 102개(이미 명명됨) 중 grpSp 66·sp 29·
+표 5·이미지 2. 두 이슈 → 사용자 결정: (1)그룹 채우기 op 개발 (2)운영자 페이지별 타입 지정.
+
+## 결정·구현
+1. **group_fill op**: 슬롯이 grpSp 면 내부 <p:sp> 텍스트박스들을 입력 배열로 순서대로 verbatim
+   채움(`_fill_inner_texts`). 그룹 비텍스트 도형/구조 보존. _OPS/_VALID_OPS 등록.
+2. **운영자 타입 지정**: `run_deck(forced_types=list|dict)` — 페이지별 타입 명시 시 분류 우회
+   (source="operator"). 시그니처로 구분 안 되는 grouped 텍스트 타입 대응.
+
+## 실파일 검증(디자인가이드2.0)
+- asis_tobe(sp 슬롯): slide11 에 asis/tobe 문구 verbatim 주입 성공.
+- group_fill: slide12 asis_summary(내부 2박스)에 2값 순서대로 verbatim, 구조(txBody 2) 보존.
+
+## 셀프체크(6종 PASS)
+- run_transform_demo [9]: group_fill(그룹 2박스 verbatim·원본 치환·구조 보존).
+- run_pipeline_demo [7c]: forced_types 로 page_types 비어도 지정 타입 변환(source=operator).
+
+## 분석으로 드러난 사실(향후)
+- 분류 충돌: 시그니처 5개로 grouped 텍스트 타입 구분 불가 → 당분간 운영자 지정. 내용기반 LLM 분류는 보류.
+- 타입 카탈로그(2.0 슬롯셋): 표지/목차/파트간지/asis_tobe/본문(body_head+body)/좌우리스트/액션4분할/장비표 등 ~10종.
+- 그룹 자동 매핑(초안→group_fill 배열)은 미구현 — 현재 group_fill 값은 명시 source_slots/사이드카.
