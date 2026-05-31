@@ -1,0 +1,17 @@
+{% if man.lint.findings %}
+<table class="findings">
+  <thead><tr><th style="width:80px">심각도</th><th style="width:140px">코드</th><th>위치</th><th>메시지</th></tr></thead>
+  <tbody>
+  {% for f in man.lint.findings %}
+    <tr>
+      <td><span class="{{ f[0] }}">{{ f[0]|upper }}</span></td>
+      <td><code>{{ f[1] }}</code></td>
+      <td>{{ f[2] }}</td>
+      <td>{{ f[3] }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted">(결함 없음)</p>
+{% endif %}

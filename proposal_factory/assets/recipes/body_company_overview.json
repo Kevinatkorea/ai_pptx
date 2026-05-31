@@ -1,0 +1,14 @@
+{
+  "type": "body_company_overview",
+  "template_slide": "ppt/slides/slide20.xml",
+  "ops": [
+    {"op": "text_inject", "slot": "breadcrumb", "from": "section_path"},
+    {"op": "text_inject", "slot": "key_point", "from": "summary", "rule": "one_line"},
+    {"op": "table_rebuild", "slot": "company_overview", "from": "company_fields",
+     "style": {"label_col_fill": "F2F2F2", "highlight_fill": "DCEFFE"}},
+    {"op": "image_reuse", "slot": "certificate_iso", "from": "images.certificate_iso"},
+    {"op": "shape_rebuild", "slot": "history_timeline", "from": "year_bullets",
+     "design": {"year_box_fill": "2B8ECB", "year_text_color": "FFFFFF",
+                "pointer_fill": "1A3D46", "uniform_gap_emu": 46000, "columns": 2}}
+  ]
+}

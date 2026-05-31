@@ -1,0 +1,10 @@
+{"$schema":"http://json-schema.org/draft-07/schema#","title":"TemplateProfile",
+ "type":"object","required":["template_id","slide_size","tokens"],
+ "properties":{
+   "template_id":{"type":"string"},
+   "slide_size":{"type":"object","properties":{"cx":{"type":"integer"},"cy":{"type":"integer"}}},
+   "tokens":{"type":"object","properties":{
+     "colors":{"type":"object"},"fonts":{"type":"object"},
+     "nonrender_fonts":{"type":"array","items":{"type":"string"}}}},
+   "layouts":{"type":"array","items":{"type":"object",
+     "properties":{"chapter_label":{"type":"string"},"slide_xml":{"type":"string"}}}}}}

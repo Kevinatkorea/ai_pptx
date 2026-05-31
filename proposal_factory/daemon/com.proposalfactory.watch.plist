@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.proposalfactory.watch — inbox 감시 데몬(launchd) 템플릿.
+  아래 __PROJECT_DIR__ / __PYTHON__ 을 실제 경로로 치환한 뒤
+  ~/Library/LaunchAgents/ 에 두고 `launchctl load` 한다. (docs/operations.md 참고)
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.proposalfactory.watch</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>__PYTHON__</string>
+    <string>__PROJECT_DIR__/daemon/watch_inbox.py</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__PROJECT_DIR__</string>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>__PROJECT_DIR__/logs/watch.out.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>__PROJECT_DIR__/logs/watch.err.log</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <!-- 필요 시 주석 해제하여 경로/모드 오버라이드 -->
+    <!-- <key>PROPOSAL_WEB_STORE</key><string>/Volumes/work/proposal_factory/review</string> -->
+    <!-- <key>PROPOSAL_PAGE_TYPES</key><string>/Volumes/work/proposal_factory/assets/page_types.json</string> -->
+    <!-- <key>ANTHROPIC_API_KEY</key><string>sk-ant-...</string> -->
+  </dict>
+</dict>
+</plist>

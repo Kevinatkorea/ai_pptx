@@ -1,0 +1,19 @@
+# 가상환경 (재현은 requirements-*.txt 로)
+.venv/
+
+# 파이썬 캐시
+__pycache__/
+*.py[cod]
+
+# 런타임 산출물 — 검수 job 저장소 / 로그 / 데몬 보관 폴더
+proposal_factory/jobs/
+proposal_factory/logs/
+**/_processed/
+**/_failed/
+
+# AI 사용량 누적
+proposal_factory/**/ai_spend.json
+
+# OS 부산물
+.DS_Store
+Thumbs.db

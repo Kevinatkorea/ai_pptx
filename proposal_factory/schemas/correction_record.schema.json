@@ -1,0 +1,8 @@
+{"$schema":"http://json-schema.org/draft-07/schema#","title":"CorrectionRecord",
+ "type":"object","required":["job_id","shape","kind"],
+ "properties":{"job_id":{"type":"string"},"page_type":{"type":"string"},
+   "shape":{"type":"string"},
+   "kind":{"enum":["moved","resized","font_size","text_edit"]},
+   "dx":{"type":"integer"},"dy":{"type":"integer"},
+   "dcx":{"type":"integer"},"dcy":{"type":"integer"},
+   "from":{},"to":{},"promoted":{"type":"boolean"}}}

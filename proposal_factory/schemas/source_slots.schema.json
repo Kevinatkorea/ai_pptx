@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SourceSlots",
+  "description": "transform.apply() 입력. recipe.ops 의 'from' 키들이 가리키는 데이터.",
+  "type": "object",
+  "properties": {
+    "section_path": {
+      "type": "string",
+      "description": "브레드크럼/섹션 경로 (예: '1. 제안사 소개 > 1.1 회사 개요')."
+    },
+    "summary": {
+      "type": "string",
+      "description": "KEY POINT/요약 한 줄(원문에 줄바꿈이 있어도 one_line 룰로 압축됨)."
+    },
+    "company_fields": {
+      "type": "array",
+      "description": "회사개요 표 본문 행. 헤더는 템플릿 첫 행을 보존.",
+      "items": {
+        "type": "object",
+        "required": ["label", "value"],
+        "properties": {
+          "label": {"type": "string"},
+          "value": {"type": "string"},
+          "highlight": {"type": "boolean", "description": "true 면 value 셀에 highlight_fill 적용"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "year_bullets": {
+      "type": "array",
+      "description": "연혁/타임라인 항목. shape_rebuild 로 균일 간격 그리드 재구성.",
+      "items": {
+        "type": "object",
+        "required": ["year", "text"],
+        "properties": {
+          "year": {"type": "string", "description": "연도 라벨(예: '2024')"},
+          "text": {"type": "string", "description": "불릿 본문"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "images": {
+      "type": "object",
+      "description": "image_reuse 입력. 키는 슬롯명(예: certificate_iso).",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["path"],
+        "properties": {
+          "path": {"type": "string", "description": "절대 경로의 이미지 파일"},
+          "x": {"type": "integer", "description": "선택. EMU 단위 x 좌표"},
+          "y": {"type": "integer", "description": "선택. EMU 단위 y 좌표"},
+          "cx": {"type": "integer", "description": "선택. EMU 단위 가로"},
+          "cy": {"type": "integer", "description": "선택. EMU 단위 세로"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": true
+}

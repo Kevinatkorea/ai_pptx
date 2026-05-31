@@ -1,0 +1,7 @@
+{"$schema":"http://json-schema.org/draft-07/schema#","title":"DefectRecord",
+ "type":"object","required":["job_id","code","severity"],
+ "properties":{"job_id":{"type":"string"},"page_type":{"type":"string"},
+   "code":{"enum":["overlap","text_overflow","off_slide","tight_gap","uneven_gap","nonrender_font"]},
+   "severity":{"enum":["fail","warn"]},"where":{"type":"string"},"message":{"type":"string"},
+   "snapshot_png":{"type":"string"},"human_memo":{"type":"string"},
+   "ts":{"type":"string"}}}

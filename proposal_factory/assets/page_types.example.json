@@ -1,0 +1,8 @@
+[
+  {"type": "body_company_overview", "desc": "제안사 일반현황(회사개요 표 + 주요연혁 도형)",
+   "match": {"n_table_min": 1, "n_year_box_min": 1}, "recipe": "recipes/body_company_overview.json"},
+  {"type": "body_table", "desc": "표 중심 본문",
+   "match": {"n_table_min": 1, "n_year_box_max": 0}, "recipe": "recipes/body_table.json"},
+  {"type": "body_image", "desc": "이미지 포함 본문(인증서 등)",
+   "match": {"n_image_min": 1, "n_table_max": 0}, "recipe": "recipes/body_image.json"}
+]

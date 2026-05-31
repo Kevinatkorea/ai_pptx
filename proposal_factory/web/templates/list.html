@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}검수 큐 ({{ total }}){% endblock %}
+{% block content %}
+<h2>검수 큐 <span class="muted">— 총 {{ total }}개</span></h2>
+
+{% if total == 0 %}
+  <div class="card empty">
+    아직 처리된 작업이 없습니다.<br>
+    <small>pipeline.run_job() 으로 생성된 manifest 가 store_dir 에 누적되면 여기에 표시됩니다.</small>
+  </div>
+{% else %}
+  {% for status, items in groups %}
+    <div class="card">
+      <h3>
+        <span class="status status-{{ status }}">{{ status }}</span>
+        <span class="muted">({{ items|length }}개)</span>
+      </h3>
+      <table>
+        <thead><tr><th>Job ID</th><th>페이지 유형</th><th>분류</th><th>린트</th><th>변환</th><th></th></tr></thead>
+        <tbody>
+        {% for m in items %}
+          <tr>
+            <td><code>{{ m.id }}</code></td>
+            <td>{{ m.page_type or "-" }}</td>
+            <td>
+              {% if m.classify %}
+                {{ m.classify.source }} <span class="muted">({{ "%.0f"|format((m.classify.confidence or 0) * 100) }}%)</span>
+              {% else %}-{% endif %}
+            </td>
+            <td>
+              {% if m.lint %}
+                {{ m.lint.verdict }}
+                <span class="muted">fails {{ m.lint.fails }} / warns {{ m.lint.warns }}</span>
+              {% else %}-{% endif %}
+            </td>
+            <td>
+              {% if m.transform %}
+                {% if m.transform.error %}
+                  <span class="findings"><span class="fail">✗ {{ m.transform.error }}</span></span>
+                {% else %}
+                  ✓ {{ m.transform.recipe or "-" }}
+                {% endif %}
+              {% else %}-{% endif %}
+            </td>
+            <td><a class="btn" href="/review/{{ m.id }}">검수</a></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endfor %}
+{% endif %}
+{% endblock %}

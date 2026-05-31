@@ -1,0 +1,19 @@
+{
+  "version": "0.1",
+  "rules": [
+    {"id": "DG001", "from_defect": "연도배지 흰글자 미표시", "auto": true,
+     "rule": "연도 박스 글자색은 테마색(bg1) 대신 #FFFFFF 명시"},
+    {"id": "DG002", "from_defect": "스케일 이식 후 그룹 겹침", "auto": false,
+     "rule": "원본 그룹을 스케일·이식하지 말고 도형을 균일 간격으로 재구성"},
+    {"id": "DG003", "from_defect": "불균일 간격", "auto": true,
+     "rule": "콘텐츠 그룹 세로 간격을 일정 값(기본 46000 EMU)으로 통일"},
+    {"id": "DG004", "from_defect": "KEY POINT 2줄", "auto": true,
+     "rule": "KEY POINT는 한 줄로 병합"},
+    {"id": "DG005", "from_defect": "챕터 라벨 줄바꿈", "auto": true,
+     "rule": "챕터 라벨 박스 폭 확대 + 자간 0 + spAutoFit"},
+    {"id": "DG006", "from_defect": "단상 z-순서 누락", "auto": false,
+     "rule": "인증서 이미지는 단상(받침) 그룹 위 z-순서로 배치"},
+    {"id": "DG007", "from_defect": "공체 미렌더", "auto": false,
+     "rule": "표지/디바이더 공체는 환경 경고로 처리(실제 PowerPoint에선 정상)"}
+  ]
+}

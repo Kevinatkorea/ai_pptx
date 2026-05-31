@@ -1,0 +1,55 @@
+{
+  "nas": {
+    "host": "192.168.0.72",
+    "share": "work",
+    "mount": "/Volumes/work/proposal_factory",
+    "folders": ["inbox", "templates", "assets", "review", "outputs", "logs", "trash"]
+  },
+  "ai": {
+    "mode": "tiered",
+    "local_llm": {"provider": "ollama", "base_url": "http://localhost:11434",
+                  "model": "qwen2.5", "timeout_s": 30, "enabled": true},
+    "cloud": {"provider": "anthropic", "api_key_env": "ANTHROPIC_API_KEY",
+              "endpoint": "https://api.anthropic.com/v1/messages",
+              "anthropic_version": "2023-06-01",
+              "classify_model": "claude-haiku-4-5",
+              "recipe_model": "claude-opus-4-7",
+              "classify_max_tokens": 200, "recipe_max_tokens": 2000,
+              "timeout_s": 60, "enabled": true,
+              "pricing": {
+                "claude-haiku-4-5": {"in_per_mtok": 1.0, "out_per_mtok": 5.0},
+                "claude-opus-4-7": {"in_per_mtok": 15.0, "out_per_mtok": 75.0}
+              }},
+    "monthly_budget_usd": 50,
+    "fallback_when_over_budget": "local_then_human",
+    "author_recipe_on_new_type": true
+  },
+  "assets": {"recipes_dir": "./assets/recipes",
+             "page_types": "./assets/page_types.example.json",
+             "register_page_type_on_promote": true,
+             "regenerate_on_promote": true},
+  "daemon": {"processed_dir": "", "failed_dir": "", "auto_extract_slots": true},
+  "render": {"soffice": "soffice", "dpi": 140},
+  "notify": {"smtp_host": "", "from": "", "to": [""], "review_base_url": "http://proposal.local:8000/review"},
+  "retention": {"snapshot_days": 90, "source_delete_days": 30},
+  "web": {"store_dir": "./jobs", "host": "127.0.0.1", "port": 8000},
+  "autofix": {"minor_auto": ["font_shrink", "gap_adjust"], "structural_requires_human": true, "autofix_fail_codes": []},
+  "linter": {
+    "offslide_tol_emu": 20000,
+    "overlap_minor_area_emu2": 50000000000,
+    "overlap_allow_keywords": ["\ub2e8\uc0c1", "\ubc1b\uce68", "\ubc30\uacbd", "pedestal", "bg", "watermark"],
+    "cpl_factor": 0.52,
+    "line_factor": 1.18,
+    "overflow_ratio": 1.15,
+    "body_top_emu": 2300000,
+    "spacing_item_max_h": 1200000,
+    "min_gap_emu": 30000,
+    "gap_cov_threshold": 0.6,
+    "text_pad_emu": 20000,
+    "nonrender_fonts": ["\uacf5\uccb4", "\uacf5\uccb4 Medium", "\uacf5\uccb4 Bold"]
+  },
+  "lint_policy": {
+    "fail_codes": ["overlap", "text_overflow", "off_slide"],
+    "warn_codes": ["nonrender_font", "tight_gap", "uneven_gap"]
+  }
+}
