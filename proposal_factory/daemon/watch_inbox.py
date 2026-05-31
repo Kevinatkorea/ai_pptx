@@ -101,7 +101,8 @@ def _deck_slides(pptx_path):
             size = geometry.slide_size(pres) if pres else _DEFAULT_SIZE
             for n in names:
                 xml = z.read(n).decode("utf-8", "replace")
-                out.append({"slide_path": n, "shapes": geometry.extract_shapes(xml),
+                # 분류·매핑은 그룹 내부 텍스트까지 보는 deep 추출 사용(초안 측). 린터는 출력 측 별도.
+                out.append({"slide_path": n, "shapes": geometry.extract_shapes_deep(xml),
                             "size": size})
     except (zipfile.BadZipFile, OSError):
         return []

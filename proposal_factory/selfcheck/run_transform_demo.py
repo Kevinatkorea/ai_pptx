@@ -406,6 +406,19 @@ def main():
         assert_true("(머리말)" not in gx and "(본문)" not in gx, "원본 텍스트 치환됨", errors)
         assert_true(gx.count("<p:txBody>") == 2, "그룹 구조(박스 2개) 보존", errors)
 
+        print("\n[10] extract_shapes_deep — 그룹 내부 재귀 추출(절대좌표)")
+        top = geometry.extract_shapes(grp_slide)
+        deep = geometry.extract_shapes_deep(grp_slide)
+        deep_txt = [s for s in deep if s.get("texts")]
+        assert_true(len(top) == 1 and top[0]["tag"] == "grpSp",
+                    "top-level: 그룹 1블록(내부 미추출)", errors)
+        assert_true(len(deep_txt) == 2, f"deep: 그룹 내부 텍스트박스 2개 (실제 {len(deep_txt)})", errors)
+        alltext = str([t["paras"][0] for s in deep_txt for t in s["texts"] if t["paras"]])
+        assert_true("(머리말)" in alltext and "(본문)" in alltext, "deep: 내부 텍스트 추출", errors)
+        b0 = deep_txt[0]
+        assert_true(b0["x"] == 200 and b0["y"] == 200,
+                    f"deep: 절대좌표 변환 (200,200) 실제 ({b0['x']},{b0['y']})", errors)
+
         print("\n=== TRANSFORM SELF-CHECK:",
               "PASS" if not errors else f"FAIL ({len(errors)})", "===")
         sys.exit(0 if not errors else 1)

@@ -27,10 +27,51 @@ def _match_block(x: str, start: int, tag: str):
     return len(x)
 
 
+def _parse_shape_block(blk, tag):
+    """도형 블록(sp/pic/graphicFrame) → 도형 dict(원본 좌표). off/ext 없으면 None."""
+    off = re.search(r'<a:off x="(-?\d+)" y="(-?\d+)"', blk)
+    ext = re.search(r'<a:ext cx="(\d+)" cy="(\d+)"', blk)
+    if not (off and ext):
+        return None
+    name = re.search(r'name="([^"]*)"', blk)
+    shp = {
+        'tag': tag,
+        'name': name.group(1) if name else '',
+        'x': int(off.group(1)), 'y': int(off.group(2)),
+        'cx': int(ext.group(1)), 'cy': int(ext.group(2)),
+        'texts': [],
+    }
+    if tag == 'sp' and '<a:t>' in blk:
+        text = ''.join(re.findall(r'<a:t>([^<]*)</a:t>', blk))
+        paras = []
+        for p in re.findall(r'<a:p>(.*?)</a:p>', blk, re.S):
+            pt = ''.join(re.findall(r'<a:t>([^<]*)</a:t>', p))
+            if pt.strip():
+                paras.append(pt)
+        if not paras and text.strip():
+            paras = [text]
+        sz = re.search(r'\bsz="(\d+)"', blk)
+        wrap = re.search(r'wrap="(\w+)"', blk)
+        fonts = set(re.findall(r'typeface="([^"]+)"', blk))
+        shp['texts'].append({
+            'text': text,
+            'paras': paras,
+            'sz': int(sz.group(1)) if sz else 1800,   # 1/100 pt
+            'wrap': wrap.group(1) if wrap else 'square',
+            'autofit': ('spAutoFit' in blk or 'normAutofit' in blk),
+            'fonts': fonts,
+        })
+    if tag == 'graphicFrame' and '<a:tbl>' in blk:
+        rows = re.findall(r'<a:tr h="(\d+)"', blk)
+        if rows:
+            shp['table_h'] = sum(int(r) for r in rows)
+    return shp
+
+
 def extract_shapes(slide_xml: str):
-    """spTree의 최상위 도형 목록을 반환.
-    각 항목: {tag,name,x,y,cx,cy,texts:[{text,sz,wrap,autofit,fonts}]}
-    좌표는 EMU. 그룹은 그룹 자체 bbox를 사용(겹침/이탈 검사 충분).
+    """spTree의 최상위 도형 목록을 반환(그룹은 그룹 자체 bbox 한 블록으로).
+    각 항목: {tag,name,x,y,cx,cy,texts:[...]}. 좌표 EMU. 린터/시그니처용 — 동작 불변.
+    그룹 내부까지 보려면 extract_shapes_deep 사용.
     """
     tree = re.search(r'<p:spTree>(.*)</p:spTree>', slide_xml, re.S)
     if not tree:
@@ -47,45 +88,77 @@ def extract_shapes(slide_xml: str):
         en = _match_block(x, st, tag)
         blk = x[st:en]
         i = en
-        off = re.search(r'<a:off x="(-?\d+)" y="(-?\d+)"', blk)
-        ext = re.search(r'<a:ext cx="(\d+)" cy="(\d+)"', blk)
-        if not (off and ext):
-            continue
-        name = re.search(r'name="([^"]*)"', blk)
-        shp = {
-            'tag': tag,
-            'name': name.group(1) if name else '',
-            'x': int(off.group(1)), 'y': int(off.group(2)),
-            'cx': int(ext.group(1)), 'cy': int(ext.group(2)),
-            'texts': [],
-        }
-        if tag == 'sp' and '<a:t>' in blk:
-            text = ''.join(re.findall(r'<a:t>([^<]*)</a:t>', blk))
-            paras = []
-            for p in re.findall(r'<a:p>(.*?)</a:p>', blk, re.S):
-                pt = ''.join(re.findall(r'<a:t>([^<]*)</a:t>', p))
-                if pt.strip():
-                    paras.append(pt)
-            if not paras and text.strip():
-                paras = [text]
-            sz = re.search(r'\bsz="(\d+)"', blk)
-            wrap = re.search(r'wrap="(\w+)"', blk)
-            fonts = set(re.findall(r'typeface="([^"]+)"', blk))
-            shp['texts'].append({
-                'text': text,
-                'paras': paras,
-                'sz': int(sz.group(1)) if sz else 1800,   # 1/100 pt
-                'wrap': wrap.group(1) if wrap else 'square',
-                'autofit': ('spAutoFit' in blk or 'normAutofit' in blk),
-                'fonts': fonts,
-            })
-        # 표: 실제 높이 = 행 높이 합 (프레임 ext.cy는 과대평가일 수 있음)
-        if tag == 'graphicFrame' and '<a:tbl>' in blk:
-            rows = re.findall(r'<a:tr h="(\d+)"', blk)
-            if rows:
-                shp['table_h'] = sum(int(r) for r in rows)
-        shapes.append(shp)
+        shp = _parse_shape_block(blk, tag)
+        if shp is not None:
+            shapes.append(shp)
     return shapes
+
+
+def _group_xfrm(blk):
+    """grpSp 블록의 (off, ext, chOff, chExt) → 좌표 변환 파라미터. 없으면 None."""
+    g = re.search(r'<p:grpSpPr>.*?<a:xfrm[^>]*>(.*?)</a:xfrm>', blk, re.S)
+    if not g:
+        return None
+    s = g.group(1)
+    off = re.search(r'<a:off x="(-?\d+)" y="(-?\d+)"', s)
+    ext = re.search(r'<a:ext cx="(\d+)" cy="(\d+)"', s)
+    cho = re.search(r'<a:chOff x="(-?\d+)" y="(-?\d+)"', s)
+    che = re.search(r'<a:chExt cx="(\d+)" cy="(\d+)"', s)
+    if not (off and ext and cho and che):
+        return None
+    return (int(off.group(1)), int(off.group(2)), int(ext.group(1)), int(ext.group(2)),
+            int(cho.group(1)), int(cho.group(2)), int(che.group(1)), int(che.group(2)))
+
+
+def _group_fn(g, outer):
+    """그룹 변환 함수(자식 좌표 → 절대 좌표). outer 변환과 합성."""
+    ox, oy, ecx, ecy, cox, coy, chx, chy = g
+    sx = ecx / chx if chx else 1.0
+    sy = ecy / chy if chy else 1.0
+
+    def fn(x, y, cx, cy):
+        ax, ay = ox + (x - cox) * sx, oy + (y - coy) * sy
+        acx, acy = cx * sx, cy * sy
+        return outer(ax, ay, acx, acy) if outer else (ax, ay, acx, acy)
+    return fn
+
+
+def extract_shapes_deep(slide_xml=None, _content=None, _xf=None):
+    """그룹 내부까지 **재귀** 추출 → 리프 도형(sp/pic/graphicFrame) 목록. 좌표는 절대(EMU).
+
+    그룹(grpSp) 컨테이너는 내보내지 않고 그 안의 리프만 좌표 변환해 내보낸다(그룹 안 텍스트
+    까지 포함) → 분류(content_profile)·콘텐츠 매핑에 사용. 린터용 extract_shapes 와 별개.
+    """
+    if _content is None:
+        tree = re.search(r'<p:spTree>(.*)</p:spTree>', slide_xml or "", re.S)
+        if not tree:
+            return []
+        _content = tree.group(1)
+    out, i = [], 0
+    while True:
+        m = re.search(r'<p:(sp|pic|grpSp|graphicFrame)>', _content[i:])
+        if not m:
+            break
+        tag = m.group(1)
+        st = i + m.start()
+        en = _match_block(_content, st, tag)
+        blk = _content[st:en]
+        i = en
+        if tag == 'grpSp':
+            g = _group_xfrm(blk)
+            inner = blk[blk.find("</p:grpSpPr>") + len("</p:grpSpPr>"):] if "</p:grpSpPr>" in blk else ""
+            fn = _group_fn(g, _xf) if g else _xf
+            out.extend(extract_shapes_deep(_content=inner, _xf=fn))
+            continue
+        shp = _parse_shape_block(blk, tag)
+        if shp is None:
+            continue
+        if _xf:
+            ax, ay, acx, acy = _xf(shp['x'], shp['y'], shp['cx'], shp['cy'])
+            shp['x'], shp['y'] = int(ax), int(ay)
+            shp['cx'], shp['cy'] = int(acx), int(acy)
+        out.append(shp)
+    return out
 
 
 def source_slots_from_shapes(shapes):

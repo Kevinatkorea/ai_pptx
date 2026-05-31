@@ -882,3 +882,26 @@ run_selfcheck/run_pipeline_demo([6][7])/run_transform_demo/run_ai_demo([9b])/run
 - 운영: inbox 초안 → 페이지 타입 자동 분류 → 변환. 운영자 지정은 폴백/우선(forced_types) 유지.
 - 한계: geometry 가 최상위 도형만 추출 → 그룹 내부 텍스트는 프로필에서 일부 누락(분류 정확도 영향).
   → 다음: geometry 그룹 재귀 추출로 분류·매핑 정확도 향상.
+
+---
+
+# 라운드 — geometry 그룹 내부 재귀 추출 (분류·매핑 정확도 기반 개선)
+
+문제: 디자인가이드2.0 텍스트의 64%가 그룹(grpSp) 안 → 최상위만 보는 extract_shapes 로는
+분류/매핑이 그룹 텍스트를 놓침(일부 슬라이드는 top-level 텍스트 0개).
+
+## 산출물
+- `geometry._parse_shape_block` — 도형 블록 파싱 공통 헬퍼(중복 제거).
+- `geometry.extract_shapes_deep` — 그룹 재귀, 자식→절대좌표 변환(_group_xfrm/_group_fn 합성),
+  리프 도형만 반환. **extract_shapes(린터/시그니처)는 동작 불변**(분리).
+- `daemon._deck_slides` — 초안 분류·매핑은 deep 사용. 출력 린트는 기존 extract_shapes 유지.
+
+## 검증
+- 실측(디자인가이드2.0): top→deep 텍스트 slide6 5→25, slide12 4→21, slide13 14→34,
+  slide7 0→10, slide9 0→11. 시그니처도 풍부(이미지/제목 감지).
+- run_transform_demo [10]: 그룹 2박스 deep 추출 + 절대좌표 변환(200,200) 확인.
+- 6종 회귀 PASS(extract_shapes 불변 → 기존 셀프체크 무영향; 합성 픽스처는 flat 이라 deep==top).
+
+## 효과
+- content_profile 가 그룹 텍스트까지 → classify_page 분류 정확도↑.
+- _text_blocks/build_page_source_slots 도 그룹 텍스트 surfacing(매핑 후보↑).
