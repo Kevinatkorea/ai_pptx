@@ -905,3 +905,22 @@ run_selfcheck/run_pipeline_demo([6][7])/run_transform_demo/run_ai_demo([9b])/run
 ## 효과
 - content_profile 가 그룹 텍스트까지 → classify_page 분류 정확도↑.
 - _text_blocks/build_page_source_slots 도 그룹 텍스트 surfacing(매핑 후보↑).
+
+---
+
+# 라운드 — group_fill 슬롯 초안 자동 매핑 (verbatim 배열)
+
+deep 추출로 그룹 텍스트가 보이게 됐으므로, 초안 콘텐츠를 표준 템플릿 그룹 슬롯에 자동 배정.
+
+## 산출물
+- `ai.map_content` — group_fill 슬롯은 **인덱스 배열**, text_inject 는 단일 인덱스 반환(문구 verbatim,
+  모델은 인덱스만). int/list 검증·필터.
+- `pipeline.build_page_source_slots` — text_inject/group_fill 모두 처리: 단일→문자열, 그룹→문자열 배열
+  (모두 초안에서 verbatim). 폴백(순서 기반)도 그룹은 리스트로.
+
+## 검증 (6종 PASS)
+- run_ai_demo [9d]: group_fill 배열 보존(순서)·text 단일·무효 인덱스 배열 제외.
+- run_pipeline_demo [7e]: AI 배정 → summary=['그룹라인1','그룹라인2'](verbatim 배열), title 단일; 폴백도 동작.
+
+## 남은 것
+- 표 슬롯 자동 입력(table_rebuild — label/value 구조 추출), 실 .hwp 회귀, 비렌더 폰트 리맵.

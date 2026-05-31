@@ -91,7 +91,7 @@ proposal_factory/
 
 다중 페이지 덱 + 콘텐츠 매핑(1:1):
 - **다중 페이지 분류**(`pipeline.classify_deck`): 덱의 각 슬라이드를 1:1로 독립 분류 → `manifest.pages[]`(페이지별 유형·신뢰도·레시피 유무). 데몬이 다중 슬라이드 .pptx 를 자동으로 이 경로로 처리.
-- **AI 콘텐츠 매핑**(`ai.map_content` + `pipeline.run_deck`): 초안 페이지의 텍스트를 표준 템플릿 슬롯에 배정해 변환. **문구 변경 없음** — LLM 은 "어느 초안 블록 → 어느 슬롯"의 **인덱스만** 결정하고, 실제 텍스트 값은 초안에서 **그대로(verbatim)** 복사한다. 게이트웨이가 없거나 보안망이면 **순서 기반(positional) 폴백**으로 오프라인 동작. 페이지는 1:1(분리/병합 없음).
+- **AI 콘텐츠 매핑**(`ai.map_content` + `pipeline.run_deck`): 초안 페이지의 텍스트를 표준 템플릿 슬롯에 배정해 변환. **문구 변경 없음** — LLM 은 "어느 초안 블록 → 어느 슬롯"의 **인덱스만** 결정하고(text_inject=단일 인덱스, **group_fill=인덱스 배열**), 실제 텍스트 값은 초안에서 **그대로(verbatim)** 복사한다. 그룹 슬롯도 초안 블록을 자동 배정(deep 추출로 그룹 텍스트가 보임). 게이트웨이가 없거나 보안망이면 **순서 기반(positional) 폴백**으로 오프라인 동작. 페이지는 1:1(분리/병합 없음).
   - **내용 기반 자동 분류**(`ai.classify_page` + `pipeline._classify_page`): 결정론(시그니처)으로 구분 안 되는 grouped 텍스트 타입은, 슬라이드 **내용 프로필**(텍스트 스니펫+레이아웃, `classify.content_profile`)과 **타입 카탈로그**(type+desc)를 LLM 에 주어 자동 분류한다(`source="content_llm"`). 라벨은 카탈로그 화이트리스트로 검증. 게이트웨이 없거나 보안망이면 결정론 결과만(안전).
   - **그룹 내부 추출**(`geometry.extract_shapes_deep`): 도형이 그룹(`grpSp`)에 중첩돼 있으면 최상위 추출(`extract_shapes`, 린터용)은 그룹 안 텍스트를 놓친다. deep 추출은 그룹을 재귀해 리프 텍스트를 절대좌표로 surfacing → 분류·매핑 정확도↑(실측: 일부 슬라이드는 top-level 텍스트 0개 → deep 10개+). 데몬이 초안 분류·매핑에 deep 을 쓰고, 출력 린트는 기존 `extract_shapes` 유지.
   - **운영자 페이지별 타입 지정**(폴백/우선): `run_deck(forced_types=...)` 로 페이지마다 타입을 명시 지정(분류 우회, `source="operator"`). 자동 분류가 애매한 페이지에 사용.
@@ -208,4 +208,5 @@ python3 -m venv ../.venv                  # /Users/shin/AI_pptx/.venv 생성
 17. ~~단일 파일 덱 조립 + 초안 이미지 carry-over(원위치)~~ → **완료**(`engine/deck.py`). 실 SKB 템플릿 구조 검증.
 18. ~~SKB 표준 템플릿 타입 라이브러리~~ → **완료**(`assets/recipes/skb/` 22종, 실파일 전수 검증).
 19. ~~내용 기반 자동 타입 분류~~ → **완료**(`ai.classify_page`). 운영자 지정 없이 페이지 타입 자동 선택(지정은 폴백).
-20. **남은 항목**: geometry 그룹 내부 텍스트 추출(분류/매핑 정확도↑), group_fill 슬롯의 초안→배열 자동 매핑, 표 슬롯 자동 입력, 실 `.hwp` 샘플 회귀.
+20. ~~group_fill 슬롯의 초안→배열 자동 매핑~~ → **완료**(map_content 배열 배정·verbatim).
+21. **남은 항목**: 표 슬롯 자동 입력(table_rebuild), 실 `.hwp` 샘플 회귀, 비렌더 폰트 리맵, PowerPoint 실열람 정밀 확인.

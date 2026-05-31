@@ -188,7 +188,8 @@ class AIGateway:
     _MAP_SYSTEM = (
         "당신은 슬롯 배정기다. **텍스트를 절대 바꾸거나 다시 쓰지 마라.** "
         "각 표준 슬롯에 가장 잘 맞는 초안 블록의 인덱스(번호)만 고른다. "
-        "출력은 단일 JSON 객체 {\"assign\": {\"<slot_key>\": <block_index>}} 만 허용. "
+        "op=text_inject 슬롯은 인덱스 1개, op=group_fill 슬롯은 인덱스 배열(순서대로). "
+        "출력은 단일 JSON 객체 {\"assign\": {\"<slot>\": <index 또는 [indices]>}} 만 허용. "
         "맞는 블록이 없는 슬롯은 생략한다. 텍스트 내용은 응답에 절대 포함하지 마라."
     )
 
@@ -237,8 +238,8 @@ class AIGateway:
             b = b[:6000]
         return (
             "초안 텍스트 블록을 표준 템플릿의 슬롯에 배정하라. **문구는 절대 바꾸지 마라** — "
-            "슬롯마다 가장 잘 맞는 블록의 인덱스만 고른다.\n"
-            "응답: {\"assign\": {\"<slot_key>\": <block_index>}} JSON.\n\n"
+            "블록 인덱스만 고른다. text_inject 슬롯은 인덱스 1개, group_fill 슬롯은 인덱스 배열.\n"
+            "응답: {\"assign\": {\"<slot>\": <index 또는 [indices]>}} JSON.\n\n"
             f"hint: {hint}\n"
             f"slots: {s}\n"
             f"blocks: {b}"
@@ -361,6 +362,13 @@ class AIGateway:
         valid_keys = {s["key"] for s in slots}
         out = {}
         for k, v in assign.items():
-            if k in valid_keys and isinstance(v, int) and v in valid_idx:
-                out[k] = v  # 값이 아니라 인덱스만 — 텍스트는 호출자가 verbatim 사용
+            if k not in valid_keys:
+                continue
+            if isinstance(v, int) and v in valid_idx:
+                out[k] = v                       # text_inject: 단일 인덱스
+            elif isinstance(v, list):
+                idxs = [i for i in v if isinstance(i, int) and i in valid_idx]
+                if idxs:
+                    out[k] = idxs                # group_fill: 인덱스 배열(순서 보존)
+            # 값이 아니라 인덱스만 — 텍스트는 호출자가 초안에서 verbatim 사용
         return {"assign": out}

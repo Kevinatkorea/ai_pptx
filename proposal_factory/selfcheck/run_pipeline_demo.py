@@ -512,6 +512,26 @@ def main():
         else:
             print("   ✓ 통과 (gateway.classify_page 로 자동 타입 선택 → 변환)")
 
+        # (e) group_fill 자동 매핑 — 초안 블록 → 그룹 슬롯 배열(verbatim)
+        recipe_grp = {"type": "g", "template_slide": "ppt/slides/slide1.xml",
+                      "ops": [{"op": "group_fill", "slot": "summary", "from": "summary"},
+                              {"op": "text_inject", "slot": "title", "from": "title"}]}
+        draft_g = [_sp("a", "그룹라인1"), _sp("b", "그룹라인2"), _sp("c", "제목텍스트")]
+
+        class _MapG:
+            def map_content(self, blocks, slots, hint=""):
+                return {"assign": {"summary": [0, 1], "title": 2}}   # group=배열, text=단일
+        src_ai, m_ai = pipeline.build_page_source_slots(draft_g, recipe_grp, _MapG())
+        src_pos, m_pos = pipeline.build_page_source_slots(draft_g, recipe_grp, None)
+        print(f"\n[7e] group_fill 자동 매핑 → AI={src_ai} / 폴백 method={m_pos}")
+        ok7e = (m_ai == "ai" and src_ai.get("summary") == ["그룹라인1", "그룹라인2"]
+                and src_ai.get("title") == "제목텍스트"
+                and isinstance(src_pos.get("summary"), list))   # 폴백도 group 은 리스트
+        if not ok7e:
+            print(f"   ✗ 실패: ai={src_ai} pos={src_pos}"); ok = False
+        else:
+            print("   ✓ 통과 (group_fill=verbatim 배열, text_inject=단일, 폴백도 동작)")
+
         # 8) 단일 파일 덱 조립 + 초안 이미지 carry-over (1:1)
         from run_transform_demo import build_template_2slide
         tmpl_tree = os.path.join(tmp5, "deck_tmpl")

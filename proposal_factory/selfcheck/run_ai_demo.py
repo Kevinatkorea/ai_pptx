@@ -238,6 +238,19 @@ def main():
         chk(gw2.classify_page(prof, catalog) is None, "카탈로그 밖 라벨 → None(화이트리스트)")
         chk(gw.classify_page(prof, []) is None, "빈 카탈로그 → None")
 
+        # [9d] map_content — group_fill 슬롯은 인덱스 배열 배정
+        print("\n[9d] map_content group_fill(배열 배정)")
+        assign2 = json.dumps({"assign": {"grp": [2, 0], "t": 1, "bad": [99]}}, ensure_ascii=False)
+        http = MockHttp(anthropic_payload=anth_msg(assign2, in_tok=200, out_tok=30))
+        gw = make_gw(make_cfg(), http)
+        blocks = [{"i": 0, "text": "A"}, {"i": 1, "text": "B"}, {"i": 2, "text": "C"}]
+        slots = [{"key": "grp", "op": "group_fill"}, {"key": "t", "op": "text_inject"},
+                 {"key": "bad", "op": "group_fill"}]
+        a = (gw.map_content(blocks, slots) or {}).get("assign", {})
+        chk(a.get("grp") == [2, 0], f"group_fill 배열 보존(순서) (실제 {a.get('grp')})")
+        chk(a.get("t") == 1, "text_inject 단일 인덱스 보존")
+        chk("bad" not in a, "무효 인덱스만인 배열 → 제외")
+
         # [10] Anthropic 5xx → None
         print("\n[10] Anthropic 5xx")
         http = MockHttp(anthropic_payload=anth_msg("err"), anthropic_status=500)

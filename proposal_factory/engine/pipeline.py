@@ -83,18 +83,18 @@ def _text_blocks(shapes):
 
 
 def build_page_source_slots(draft_shapes, recipe, gateway=None):
-    """초안 페이지 → recipe 의 text_inject 슬롯용 source_slots(**문구 verbatim**).
+    """초안 페이지 → recipe 의 text_inject/group_fill 슬롯용 source_slots(**문구 verbatim**).
 
-    AI(map_content)로 블록↔슬롯 배정하되, 값은 항상 초안 블록에서 **그대로 복사**한다
-    (모델은 인덱스만 결정 → 문구 변경 불가). gateway 없거나 실패하면 순서 기반 폴백.
-    반환: (source_slots dict, method) — method ∈ {"ai", "positional", "none"}.
+    AI(map_content)로 블록↔슬롯 배정하되 값은 항상 초안 블록에서 **그대로 복사**한다
+    (모델은 인덱스만 결정 → 문구 변경 불가). text_inject=단일 문자열, group_fill=문자열 배열.
+    gateway 없거나 실패하면 순서 기반 폴백. 반환: (source_slots, method∈{ai,positional,none}).
     """
-    text_ops = [op for op in recipe.get("ops", [])
-                if op.get("op") == "text_inject" and op.get("slot") and op.get("from")]
-    if not text_ops:
+    ops = [op for op in recipe.get("ops", [])
+           if op.get("op") in ("text_inject", "group_fill") and op.get("slot") and op.get("from")]
+    if not ops:
         return {}, "none"
     blocks = _text_blocks(draft_shapes)
-    slots = [{"key": op["slot"], "op": "text_inject"} for op in text_ops]
+    slots = [{"key": op["slot"], "op": op["op"]} for op in ops]
     assign, method = {}, "positional"
     if gateway is not None:
         try:
@@ -103,17 +103,30 @@ def build_page_source_slots(draft_shapes, recipe, gateway=None):
             res = None
         if res and isinstance(res.get("assign"), dict) and res["assign"]:
             assign, method = dict(res["assign"]), "ai"
-    if not assign:  # 폴백: 블록 순서 ↔ 슬롯 순서
-        for n, op in enumerate(text_ops):
-            if n < len(blocks):
-                assign[op["slot"]] = blocks[n]["i"]
     text_by_i = {b["i"]: b["text"] for b in blocks}
-    from_by_slot = {op["slot"]: op["from"] for op in text_ops}
     src = {}
-    for slot_key, idx in assign.items():
-        frm = from_by_slot.get(slot_key)
-        if frm and idx in text_by_i:
-            src[frm] = text_by_i[idx]   # ← 초안 텍스트 그대로(verbatim)
+    if assign:
+        for op in ops:
+            v = assign.get(op["slot"])
+            if v is None:
+                continue
+            if op["op"] == "text_inject" and isinstance(v, int) and v in text_by_i:
+                src[op["from"]] = text_by_i[v]                       # verbatim 단일
+            elif op["op"] == "group_fill":
+                idxs = v if isinstance(v, list) else [v]
+                vals = [text_by_i[i] for i in idxs if i in text_by_i]
+                if vals:
+                    src[op["from"]] = vals                           # verbatim 배열
+    else:  # 폴백: 블록 순서대로 1개씩(group 은 단일 원소 배열) — best-effort, AI 가 본 매핑 담당
+        ptr = 0
+        for op in ops:
+            if ptr >= len(blocks):
+                break
+            if op["op"] == "text_inject":
+                src[op["from"]] = blocks[ptr]["text"]
+            else:
+                src[op["from"]] = [blocks[ptr]["text"]]
+            ptr += 1
     return src, method
 
 
