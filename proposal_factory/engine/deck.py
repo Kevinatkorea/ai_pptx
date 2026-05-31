@@ -114,7 +114,14 @@ def _carry_pics(tree, slide_path, pics, tag):
         add_rels.append(f'<Relationship Id="{newrid}" Type="{_IMG_REL}" '
                         f'Target="../media/{newname}"/>')
         add_pics.append(re.sub(r'(r:embed=")rId\d+(")', rf'\g<1>{newrid}\g<2>', block, count=1))
-    sx = sx.replace("</p:spTree>", "".join(add_pics) + "</p:spTree>", 1)
+    # 초안 이미지는 z-order 최하위(spTree 그룹 속성 직후)에 넣어 템플릿 텍스트/타이틀이
+    # 위에 보이게 한다(디자이너가 추후 앞으로 가져오거나 위치 조정).
+    pics_xml = "".join(add_pics)
+    m = re.search(r'</p:grpSpPr>', sx)
+    if m:
+        sx = sx[:m.end()] + pics_xml + sx[m.end():]
+    else:
+        sx = sx.replace("</p:spTree>", pics_xml + "</p:spTree>", 1)
     rx = rx.replace("</Relationships>", "".join(add_rels) + "</Relationships>")
     with open(sp, "w", encoding="utf-8") as fh:
         fh.write(sx)
@@ -161,6 +168,54 @@ def _repoint_presentation(tree, slide_ks):
         fh.write(rx)
 
 
+def _prune(tree, keep_ks):
+    """출력에 표시되지 않는 원본 템플릿 슬라이드와 고아 미디어를 제거해 파일을 줄인다.
+
+    keep_ks: 최종 sldIdLst 에 남길 슬라이드 번호. 마스터/레이아웃/테마는 보존하므로
+    유효성에 영향 없음. 어떤 .rels 에서도 참조되지 않는 ppt/media 파일만 삭제한다.
+    """
+    slidedir = os.path.join(tree, "ppt", "slides")
+    keep = {f"slide{k}.xml" for k in keep_ks}
+    for n in list(os.listdir(slidedir)):
+        if re.match(r'slide\d+\.xml$', n) and n not in keep:
+            os.remove(os.path.join(slidedir, n))
+            rel = os.path.join(slidedir, "_rels", n + ".rels")
+            if os.path.exists(rel):
+                os.remove(rel)
+    # [Content_Types].xml: 제거된 슬라이드 Override 삭제
+    ctp = os.path.join(tree, "[Content_Types].xml")
+    with open(ctp, encoding="utf-8") as fh:
+        ct = fh.read()
+    ct = re.sub(
+        r'<Override PartName="/ppt/slides/slide(\d+)\.xml"[^>]*/>',
+        lambda m: m.group(0) if int(m.group(1)) in set(keep_ks) else "", ct)
+    with open(ctp, "w", encoding="utf-8") as fh:
+        fh.write(ct)
+    # presentation.xml.rels: 제거된 슬라이드 관계 삭제
+    prel = os.path.join(tree, "ppt", "_rels", "presentation.xml.rels")
+    if os.path.exists(prel):
+        with open(prel, encoding="utf-8") as fh:
+            rx = fh.read()
+        rx = re.sub(
+            r'<Relationship[^>]*Target="slides/slide(\d+)\.xml"[^>]*/>',
+            lambda m: m.group(0) if int(m.group(1)) in set(keep_ks) else "", rx)
+        with open(prel, "w", encoding="utf-8") as fh:
+            fh.write(rx)
+    # 고아 미디어 제거: 남은 어떤 .rels 에서도 참조 안 되는 ppt/media 파일 삭제
+    referenced = set()
+    for root, _d, files in os.walk(tree):
+        for f in files:
+            if f.endswith(".rels"):
+                with open(os.path.join(root, f), encoding="utf-8", errors="replace") as fh:
+                    for m in re.finditer(r'Target="([^"]*?media/[^"]+)"', fh.read()):
+                        referenced.add(os.path.basename(m.group(1)))
+    media_dir = os.path.join(tree, "ppt", "media")
+    if os.path.isdir(media_dir):
+        for f in list(os.listdir(media_dir)):
+            if f not in referenced:
+                os.remove(os.path.join(media_dir, f))
+
+
 def assemble(template_pptx, pages, out_pptx, cfg, draft_pptx=None):
     """표준 템플릿 기반 1:1 덱 조립.
 
@@ -199,6 +254,7 @@ def assemble(template_pptx, pages, out_pptx, cfg, draft_pptx=None):
             _add_slide_ct(tree, k)
             ks.append(k)
         _repoint_presentation(tree, ks)
+        _prune(tree, ks)
     finally:
         if dz is not None:
             dz.close()
