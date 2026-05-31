@@ -1,5 +1,11 @@
 # Proposal Factory — 제안서 템플릿 변환 지속학습 시스템
 
+![License](https://img.shields.io/badge/license-Proprietary-red.svg)
+![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)
+![Engine](https://img.shields.io/badge/engine-stdlib--only-success.svg)
+![Self-checks](https://img.shields.io/badge/self--checks-6%20suites-brightgreen.svg)
+![Status](https://img.shields.io/badge/status-active-blue.svg)
+
 맥미니가 상시 '학습 공장'으로 가동되며, 고객 초안을 사내 표준 템플릿에 반영하고
 페이지 레이아웃 결함을 누적 학습한다. **AI를 쓸 때와 못 쓸 때(보안망) 모두** 동작하도록
 "규칙을 만드는 공장(AI)"과 "규칙을 적용하는 엔진(결정론)"을 분리한 구조다.
@@ -81,3 +87,10 @@ python3 -m venv .venv
 | `.hwp` (HWP 5.0) | 본문 추출 | `olefile` |
 
 문서 입력(.pdf/.hwp/.hwpx/.txt)은 사이드카 `<name>.job.json` 에 `template_pptx`+`page_type` 를 지정해 변환한다.
+
+## 라이선스
+
+**Proprietary — All Rights Reserved.** 사내 독점 소프트웨어로, 저작권자의 사전 서면 허가
+없이 복제·수정·배포·사용할 수 없다. 전문은 [`LICENSE`](LICENSE) 참고.
+
+© 2026 Kevinatkorea. All rights reserved.
