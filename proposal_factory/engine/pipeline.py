@@ -25,6 +25,25 @@ def route(verdict, findings, cfg):
     return "ready_for_review"
 
 
+def _classify_page(shapes, assets, gateway=None):
+    """결정론(시그니처) → 내용 기반 LLM 분류 → unknown. (ptype, conf, source) 반환.
+
+    시그니처로 구분 안 되는 grouped 텍스트 타입은 gateway.classify_page(내용 프로필+타입 카탈로그)
+    로 분류한다. gateway 없거나 클라우드 불가면 결정론 결과만(보안망 안전).
+    """
+    ptype, conf, src = classify.classify(shapes, assets.get("page_types", []), gateway)
+    if ptype == "unknown" and gateway is not None and hasattr(gateway, "classify_page"):
+        catalog = [{"type": e.get("type"), "desc": e.get("desc", "")}
+                   for e in assets.get("page_types", []) if e.get("type")]
+        try:
+            res = gateway.classify_page(classify.content_profile(shapes), catalog)
+        except Exception:
+            res = None
+        if res:
+            return res, 0.6, "content_llm"
+    return ptype, conf, src
+
+
 def classify_deck(slides, assets, gateway=None):
     """다중 페이지 덱 분류(페이지 1:1). slides: [{slide_path, shapes, size}].
 
@@ -36,7 +55,7 @@ def classify_deck(slides, assets, gateway=None):
     pages = []
     for i, sl in enumerate(slides):
         shapes = sl.get("shapes", [])
-        ptype, conf, src = classify.classify(shapes, assets["page_types"], gateway)
+        ptype, conf, src = _classify_page(shapes, assets, gateway)
         pages.append({
             "index": i,
             "slide_path": sl.get("slide_path"),
@@ -128,7 +147,7 @@ def run_deck(slides, assets, cfg, gateway, std_template_pptx, workdir,
         if forced:
             ptype, conf, src = forced, 1.0, "operator"
         else:
-            ptype, conf, src = classify.classify(shapes, assets["page_types"], gateway)
+            ptype, conf, src = _classify_page(shapes, assets, gateway)
         page = {"index": i, "slide_path": sl.get("slide_path"),
                 "page_type": ptype, "confidence": conf, "source": src}
         recipe = None if ptype == "unknown" else _resolve_recipe(ptype, assets)

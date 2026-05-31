@@ -179,6 +179,12 @@ class AIGateway:
         "op 는 [text_inject, table_rebuild, image_reuse, shape_rebuild] 중에서만 사용."
     )
 
+    _PAGE_SYSTEM = (
+        "당신은 슬라이드 유형 분류기다. 주어진 유형 목록(type+desc) 중 슬라이드 내용/레이아웃에 "
+        "가장 잘 맞는 type 하나만 고른다. 맞는 게 없으면 'unknown'. "
+        "출력은 단일 JSON 객체 {\"page_type\": \"<type 또는 unknown>\"} 만 허용."
+    )
+
     _MAP_SYSTEM = (
         "당신은 슬롯 배정기다. **텍스트를 절대 바꾸거나 다시 쓰지 마라.** "
         "각 표준 슬롯에 가장 잘 맞는 초안 블록의 인덱스(번호)만 고른다. "
@@ -206,6 +212,20 @@ class AIGateway:
             f"hint: {hint}\n"
             f"signature: {json.dumps(sig, ensure_ascii=False)}\n"
             f"shapes: {sample_json}"
+        )
+
+    def _page_prompt(self, profile, catalog, hint):
+        cat = json.dumps([{"type": c.get("type"), "desc": c.get("desc", "")} for c in catalog],
+                         ensure_ascii=False)
+        prof = json.dumps(profile, ensure_ascii=False, default=str)
+        if len(prof) > 4000:
+            prof = prof[:4000]
+        return (
+            "슬라이드 내용/레이아웃을 보고 가장 잘 맞는 페이지 유형을 목록에서 골라라.\n"
+            "맞는 게 없으면 'unknown'. 응답은 {\"page_type\":\"<type>\"} JSON.\n\n"
+            f"hint: {hint}\n"
+            f"유형목록: {cat}\n"
+            f"슬라이드: {prof}"
         )
 
     def _map_prompt(self, blocks, slots, hint):
@@ -291,6 +311,27 @@ class AIGateway:
             if not isinstance(op, dict) or op.get("op") not in _VALID_OPS:
                 return None
         return data
+
+    def classify_page(self, profile, catalog, hint=""):
+        """내용 기반 페이지 분류. catalog: [{type, desc}]. 내용 프로필 → 가장 맞는 type.
+
+        라벨은 catalog 의 type 중 하나여야 통과(화이트리스트). 그 외/unknown → None.
+        """
+        if not self.can_use_cloud() or not catalog:
+            return None
+        model = (self.cloud.get("page_classify_model")
+                 or self.cloud.get("classify_model", "claude-haiku-4-5"))
+        max_t = self.cloud.get("classify_max_tokens", 200)
+        raw = self._call_anthropic(model, self._page_prompt(profile, catalog, hint),
+                                   self._PAGE_SYSTEM, max_t)
+        if not raw:
+            return None
+        data = self._try_parse_json(raw)
+        if not isinstance(data, dict):
+            return None
+        label = data.get("page_type")
+        valid = {c.get("type") for c in catalog}
+        return label if label in valid else None
 
     def map_content(self, blocks, slots, hint=""):
         """초안 텍스트 블록 → 표준 슬롯 '배정'(문구 변경 없음).

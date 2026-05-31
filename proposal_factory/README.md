@@ -92,7 +92,8 @@ proposal_factory/
 다중 페이지 덱 + 콘텐츠 매핑(1:1):
 - **다중 페이지 분류**(`pipeline.classify_deck`): 덱의 각 슬라이드를 1:1로 독립 분류 → `manifest.pages[]`(페이지별 유형·신뢰도·레시피 유무). 데몬이 다중 슬라이드 .pptx 를 자동으로 이 경로로 처리.
 - **AI 콘텐츠 매핑**(`ai.map_content` + `pipeline.run_deck`): 초안 페이지의 텍스트를 표준 템플릿 슬롯에 배정해 변환. **문구 변경 없음** — LLM 은 "어느 초안 블록 → 어느 슬롯"의 **인덱스만** 결정하고, 실제 텍스트 값은 초안에서 **그대로(verbatim)** 복사한다. 게이트웨이가 없거나 보안망이면 **순서 기반(positional) 폴백**으로 오프라인 동작. 페이지는 1:1(분리/병합 없음).
-  - **운영자 페이지별 타입 지정**: 시그니처로 구분이 어려운 grouped 텍스트 타입들이 많아, `run_deck(forced_types=...)` 로 페이지마다 타입을 명시 지정할 수 있다(분류 우회, `source="operator"`).
+  - **내용 기반 자동 분류**(`ai.classify_page` + `pipeline._classify_page`): 결정론(시그니처)으로 구분 안 되는 grouped 텍스트 타입은, 슬라이드 **내용 프로필**(텍스트 스니펫+레이아웃, `classify.content_profile`)과 **타입 카탈로그**(type+desc)를 LLM 에 주어 자동 분류한다(`source="content_llm"`). 라벨은 카탈로그 화이트리스트로 검증. 게이트웨이 없거나 보안망이면 결정론 결과만(안전).
+  - **운영자 페이지별 타입 지정**(폴백/우선): `run_deck(forced_types=...)` 로 페이지마다 타입을 명시 지정(분류 우회, `source="operator"`). 자동 분류가 애매한 페이지에 사용.
   - **`group_fill` op**: 슬롯이 그룹(`grpSp`)이면 내부 텍스트박스들을 입력 배열로 **순서대로 verbatim** 채운다(text_inject 는 단일 텍스트박스 전용). 그룹의 비텍스트 도형/구조는 보존.
   - **단일 파일 덱 조립 + 초안 이미지 carry-over**(`engine/deck.py`): `run_deck(out_deck=..., draft_pptx=...)` 로 표준 템플릿 기반 1:1 단일 PPTX 를 조립한다. 각 페이지는 그 유형의 표준 슬라이드를 복제·변환한 새 슬라이드가 되고(presentation sldIdLst 재지정), 초안 슬라이드의 이미지(`<p:pic>`)는 **위치 그대로** 옮겨진다(미디어 namespaced·rels 재매핑). 실제 SKB 템플릿(디자인가이드2.0)으로 구조 검증 완료.
   - 콘텐츠가 없는 op 는 건너뛴다(템플릿 자리 보존): `image_reuse`/`table_rebuild` 는 source 없으면 no-op → 이미지는 carry-over, 표는 템플릿 유지.

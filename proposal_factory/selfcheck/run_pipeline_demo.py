@@ -492,6 +492,26 @@ def main():
         else:
             print("   ✓ 통과 (forced_types 로 분류 우회·지정 타입 변환)")
 
+        # (d) 내용 기반 자동 분류 — forced_types 없이 mock gateway 가 타입 선택(시그니처 미매칭)
+        class _ClsGW:
+            def can_use_cloud(self): return True
+            def local_classify(self, s): return None
+            def cloud_classify(self, s): return None
+            def classify_page(self, profile, catalog, hint=""): return "doc"   # 내용 보고 선택
+            def map_content(self, blocks, slots, hint=""): return {"assign": {}}
+        assets_cls = {"page_types": [{"type": "doc", "desc": "문서", "match": {}}],
+                      "recipes": {"doc": recipe_doc}, "base_dir": tmp5}
+        res_cls = pipeline.run_deck([{"slide_path": "ppt/slides/slide1.xml", "shapes": p0, "size": SIZE}],
+                                    assets_cls, CFG, _ClsGW(), std2, os.path.join(tmp5, "deck_cls"))
+        pc = res_cls["pages"][0]
+        ok7d = (pc.get("source") == "content_llm" and pc.get("page_type") == "doc"
+                and pc.get("transform", {}).get("recipe") == "doc")
+        print(f"\n[7d] 내용 기반 자동 분류 → source={pc.get('source')} type={pc.get('page_type')} (forced 없음·시그니처 미매칭)")
+        if not ok7d:
+            print(f"   ✗ 실패: {pc}"); ok = False
+        else:
+            print("   ✓ 통과 (gateway.classify_page 로 자동 타입 선택 → 변환)")
+
         # 8) 단일 파일 덱 조립 + 초안 이미지 carry-over (1:1)
         from run_transform_demo import build_template_2slide
         tmpl_tree = os.path.join(tmp5, "deck_tmpl")

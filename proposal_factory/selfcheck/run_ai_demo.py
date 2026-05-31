@@ -224,6 +224,20 @@ def main():
                      if (c["body"] or {}).get("model") == "claude-haiku-4-5"]
         chk(len(map_calls) == 1, f"map_model(haiku) 1회 (실제 {len(map_calls)})")
 
+        # [9c] classify_page — 내용 기반 분류(카탈로그 화이트리스트)
+        print("\n[9c] classify_page (내용 기반)")
+        catalog = [{"type": "asis_tobe", "desc": "as-is/to-be 비교"},
+                   {"type": "section_title", "desc": "장 제목"}]
+        prof = {"signature": {"n_text": 3}, "texts": [{"t": "As-Is 노후 / To-Be 개선"}]}
+        http = MockHttp(anthropic_payload=anth_msg(json.dumps({"page_type": "asis_tobe"}),
+                                                   in_tok=300, out_tok=10))
+        gw = make_gw(make_cfg(), http)
+        chk(gw.classify_page(prof, catalog) == "asis_tobe", "카탈로그 라벨 반환")
+        http2 = MockHttp(anthropic_payload=anth_msg(json.dumps({"page_type": "made_up"})))
+        gw2 = make_gw(make_cfg(), http2)
+        chk(gw2.classify_page(prof, catalog) is None, "카탈로그 밖 라벨 → None(화이트리스트)")
+        chk(gw.classify_page(prof, []) is None, "빈 카탈로그 → None")
+
         # [10] Anthropic 5xx → None
         print("\n[10] Anthropic 5xx")
         http = MockHttp(anthropic_payload=anth_msg("err"), anthropic_status=500)

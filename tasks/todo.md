@@ -859,3 +859,26 @@ run_selfcheck/run_pipeline_demo([6][7])/run_transform_demo/run_ai_demo([9b])/run
 
 ## 검증
 - 6종 셀프체크 PASS. 샘플 재생성 1.68MB, 구조 유효(전체 XML 파싱). carry pic 이 spTree 앞으로 이동 확인.
+
+---
+
+# 라운드 — 내용 기반 자동 타입 분류 (운영자 지정 부담 제거)
+
+문제: 시그니처 5개로는 grouped 텍스트 타입 구분 불가 → 지금까지 운영자가 페이지별 타입 지정 필요.
+해결: 슬라이드 내용+레이아웃을 LLM 에 주어 타입 카탈로그에서 자동 선택.
+
+## 산출물
+- `classify.content_profile(shapes)` — 시그니처 + 텍스트 스니펫 + 위치/크기 + 도형 구성(토큰 제한).
+- `ai.AIGateway.classify_page(profile, catalog, hint)` — type+desc 카탈로그 기반 LLM 분류,
+  라벨 화이트리스트 검증. config page_classify_model(기본 classify_model=haiku).
+- `pipeline._classify_page` — 결정론 → 내용 LLM → unknown. run_deck/classify_deck 에 결선.
+  게이트웨이 없거나 보안망이면 결정론만(안전).
+
+## 검증 (6종 PASS)
+- run_ai_demo [9c]: 카탈로그 라벨 반환·밖 라벨 None(화이트리스트)·빈 카탈로그 None.
+- run_pipeline_demo [7d]: forced_types 없이 mock gateway.classify_page → source=content_llm·자동 변환.
+
+## 효과 / 남은 것
+- 운영: inbox 초안 → 페이지 타입 자동 분류 → 변환. 운영자 지정은 폴백/우선(forced_types) 유지.
+- 한계: geometry 가 최상위 도형만 추출 → 그룹 내부 텍스트는 프로필에서 일부 누락(분류 정확도 영향).
+  → 다음: geometry 그룹 재귀 추출로 분류·매핑 정확도 향상.
