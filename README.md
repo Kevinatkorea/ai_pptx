@@ -10,6 +10,7 @@
 페이지 레이아웃 결함을 누적 학습한다. **AI를 쓸 때와 못 쓸 때(보안망) 모두** 동작하도록
 "규칙을 만드는 공장(AI)"과 "규칙을 적용하는 엔진(결정론)"을 분리한 구조다.
 
+> 저장소: <https://github.com/Kevinatkorea/ai_pptx> ·
 > 상세 문서: [`proposal_factory/README.md`](proposal_factory/README.md) ·
 > 운영(launchd) 가이드: [`proposal_factory/docs/operations.md`](proposal_factory/docs/operations.md) ·
 > 작업 이력: [`tasks/todo.md`](tasks/todo.md)
@@ -54,6 +55,10 @@ tasks/           todo.md(설계·라운드 이력) · Lessons.md
 ## 빠른 시작
 
 ```bash
+# 클론
+git clone https://github.com/Kevinatkorea/ai_pptx.git
+cd ai_pptx
+
 # 엔진 자기검증 (표준 라이브러리만 — 외부 설치 불필요)
 python3 proposal_factory/selfcheck/run_selfcheck.py        # 린터
 python3 proposal_factory/selfcheck/run_pipeline_demo.py    # 오케스트레이션 + 데몬 ingest
