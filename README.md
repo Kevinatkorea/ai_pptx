@@ -6,6 +6,15 @@
 ![Self-checks](https://img.shields.io/badge/self--checks-6%20suites-brightgreen.svg)
 ![Status](https://img.shields.io/badge/status-active-blue.svg)
 
+![Python](https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![Ollama](https://img.shields.io/badge/Ollama-000000?logo=ollama&logoColor=white)
+![Claude](https://img.shields.io/badge/Claude-D97757?logo=anthropic&logoColor=white)
+![PowerPoint / OOXML](https://img.shields.io/badge/PPTX%20%C2%B7%20OOXML-B7472A)
+![PDF](https://img.shields.io/badge/PDF-EC1C24)
+![HWP · HWPX](https://img.shields.io/badge/HWP%20%C2%B7%20HWPX-1A73E8)
+![self-hosted](https://img.shields.io/badge/self--hosted-2F855A)
+
 맥미니가 상시 '학습 공장'으로 가동되며, 고객 초안을 사내 표준 템플릿에 반영하고
 페이지 레이아웃 결함을 누적 학습한다. **AI를 쓸 때와 못 쓸 때(보안망) 모두** 동작하도록
 "규칙을 만드는 공장(AI)"과 "규칙을 적용하는 엔진(결정론)"을 분리한 구조다.
