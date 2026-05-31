@@ -4,6 +4,15 @@
    "page_type":{"type":"string"},
    "classify":{"type":"object","properties":{"confidence":{"type":"number"},"source":{"type":"string"}}},
    "signature":{"type":"object"},
+   "kind":{"type":"string"},
+   "page_count":{"type":"integer"},
+   "pages":{"type":"array","items":{"type":"object","properties":{
+     "index":{"type":"integer"},
+     "slide_path":{"type":"string"},
+     "page_type":{"type":"string"},
+     "confidence":{"type":"number"},
+     "source":{"type":"string"},
+     "has_recipe":{"type":"boolean"}}}},
    "extracted":{"type":"object","properties":{
      "kind":{"type":"string"},"title":{"type":"string"}}},
    "source":{"type":"object","properties":{

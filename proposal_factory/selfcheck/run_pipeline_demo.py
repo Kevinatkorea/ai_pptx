@@ -392,6 +392,88 @@ def main():
             print(f"   ✗ 실패: sslots={sslots} tx={txf}"); ok = False
         else:
             print("   ✓ 통과 (사이드카 template + 초안 slot 텍스트 자동 추출 → 표준 템플릿에 반영)")
+
+        # 6) 다중 페이지 덱 분류(Round A): 페이지별 1:1 분류 + deck manifest
+        from run_transform_demo import build_template_2slide
+        deck_tree = os.path.join(tmp5, "deck_tree")
+        os.makedirs(deck_tree)
+        build_template_2slide(deck_tree)   # slide1=회사개요(표), slide2=텍스트1개
+        deck_pptx = os.path.join(tmp5, "초안덱.pptx")
+        pptx_io.pack(deck_tree, deck_pptx)
+        man_d = watch_inbox.ingest(deck_pptx, CFG, store, assets5, gateway=None)
+        pages = man_d.get("pages") or []
+        print(f"\n[6] 덱 분류 → kind={man_d.get('kind')} pages={man_d.get('page_count')} 상태={man_d.get('status')}")
+        ok6 = (man_d.get("kind") == "deck" and man_d.get("page_count") == 2
+               and len(pages) == 2
+               and pages[0]["index"] == 0 and pages[0]["page_type"] == "body_table"
+               and pages[1]["page_type"] == "unknown"
+               and man_d.get("status") == "new_type_queued"
+               and store.read_manifest(man_d["id"]) is not None)
+        if not ok6:
+            print(f"   ✗ 실패: {[(p['index'], p['page_type']) for p in pages]}"); ok = False
+        else:
+            print(f"   ✓ 통과 (1:1 페이지별 분류 p0={pages[0]['page_type']}/p1={pages[1]['page_type']}, store 기록)")
+
+        # 7) 1:1 덱 변환(B2): 페이지별 verbatim 매핑 → 표준 템플릿 (오프라인 + mock AI)
+        from engine import transform as _tf
+        std2_tree = os.path.join(tmp5, "std2")
+        os.makedirs(std2_tree)
+        build_template(std2_tree)                      # slot:breadcrumb, slot:key_point 보유
+        std2 = os.path.join(tmp5, "std2.pptx")
+        pptx_io.pack(std2_tree, std2)
+        recipe_doc = {"type": "doc", "template_slide": "ppt/slides/slide1.xml",
+                      "ops": [{"op": "text_inject", "slot": "breadcrumb", "from": "breadcrumb"},
+                              {"op": "text_inject", "slot": "key_point", "from": "summary"}]}
+        assets_doc = {"page_types": [{"type": "doc", "match": {"n_text_min": 1}}],
+                      "recipes": {"doc": recipe_doc}, "base_dir": tmp5}
+
+        def _sp(name, text):
+            return {"tag": "sp", "name": name, "x": 0, "y": 0, "cx": 9, "cy": 9,
+                    "texts": [{"text": text, "paras": [text], "sz": 700,
+                               "wrap": "square", "autofit": False, "fonts": set()}]}
+        p0 = [_sp("a", "페이지0 브레드크럼"), _sp("b", "페이지0 요약")]
+        slides2 = [{"slide_path": "ppt/slides/slide1.xml", "shapes": p0, "size": SIZE},
+                   {"slide_path": "ppt/slides/slide2.xml",
+                    "shapes": [_sp("a", "페이지1 브레드크럼"), _sp("b", "페이지1 요약")], "size": SIZE}]
+
+        def _slide_xml(pptx):
+            with zipfile.ZipFile(pptx) as z:
+                return z.read("ppt/slides/slide1.xml").decode("utf-8")
+
+        # (a) 오프라인 — 순서 기반(positional), 문구 verbatim
+        res_off = pipeline.run_deck(slides2, assets_doc, CFG, None, std2,
+                                    os.path.join(tmp5, "deck_off"))
+        pg = res_off["pages"]
+        x0 = _slide_xml(pg[0]["transform"]["out_pptx"]) if pg[0].get("transform", {}).get("out_pptx") else ""
+        ok7a = (res_off["page_count"] == 2 and pg[0].get("mapped") == "positional"
+                and "페이지0 브레드크럼" in x0 and "페이지0 요약" in x0
+                and res_off["status"] == "ready_for_review")
+        print(f"\n[7a] 덱 변환 오프라인 → pages={res_off['page_count']} mapped={pg[0].get('mapped')} 상태={res_off['status']}")
+        if not ok7a:
+            print(f"   ✗ 실패: {pg}"); ok = False
+        else:
+            print("   ✓ 통과 (1:1·순서 매핑, 초안 문구 verbatim 반영)")
+
+        # (b) mock AI — 인덱스 배정(swap) 준수, 문구 verbatim
+        class _MapGW:
+            def can_use_cloud(self): return True
+            def local_classify(self, s): return None
+            def cloud_classify(self, s): return None
+            def map_content(self, blocks, slots, hint=""):
+                return {"assign": {"breadcrumb": 1, "key_point": 0}}   # 0↔1 뒤바꿈
+        res_ai = pipeline.run_deck([slides2[0]], assets_doc, CFG, _MapGW(), std2,
+                                   os.path.join(tmp5, "deck_ai"))
+        pa = res_ai["pages"][0]
+        xa = _slide_xml(pa["transform"]["out_pptx"]) if pa.get("transform", {}).get("out_pptx") else ""
+        _, _, bc_block, _ = _tf._find_slot(xa, "breadcrumb") if xa else (0, 0, "", "")
+        ok7b = (pa.get("mapped") == "ai"
+                and "페이지0 요약" in bc_block          # swap: breadcrumb ← block1(요약)
+                and "페이지0 브레드크럼" in xa)          # block0 도 (key_point 로) verbatim 존재
+        print(f"\n[7b] 덱 변환 mock AI → mapped={pa.get('mapped')} / breadcrumb 슬롯=verbatim swap")
+        if not ok7b:
+            print(f"   ✗ 실패: bc_block={bc_block[:80]!r}"); ok = False
+        else:
+            print("   ✓ 통과 (AI 인덱스 배정 준수 + 문구 변경 0)")
     finally:
         shutil.rmtree(tmp5, ignore_errors=True)
 

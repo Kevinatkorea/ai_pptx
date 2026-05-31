@@ -725,3 +725,40 @@ venv 에 pypdf 6.12.2 / olefile 0.47 설치 후 실제 추출 경로를 검증.
 - 다중 키 최소-구별집합 탐색(현재는 모든 미고정 카운트를 정확값으로 추가 — 보수적·안전 우선,
   다소 brittle 하나 운영자가 이후 page_types 에서 넓힐 수 있음).
 - shadow 가 여러 겹일 때의 재귀 해소(첫 가리는 규칙 기준 1회).
+
+---
+
+# 라운드 — 다중 페이지 분류(A) + AI 콘텐츠 매핑(B), 1:1·verbatim
+
+사용자 비전: 엉망 초안(다업체 혼합)을 표준 디자인에 일관 반영. 제약 확정 — **페이지 1:1**
+(분리/병합 없음), **이미지 그대로**(디자이너 추후 변경), **문구 변경 없음**(초안 텍스트 verbatim).
+
+## A. 다중 페이지 분류
+- `pipeline.classify_deck(slides, assets, gateway)` — 슬라이드별 1:1 독립 분류 → pages[].
+- daemon `_deck_slides` + ingest 분기: 다중 슬라이드 .pptx(사이드카 변환 없을 때) → deck manifest
+  (kind/page_count/pages, 상태=미정의 있으면 new_type_queued).
+- schema(kind/page_count/pages), review.html 덱 페이지 카드.
+- 검증 [6]: 2슬라이드 덱 → p0=body_table, p1=unknown, deck manifest 기록.
+
+## B1. AI 콘텐츠 매핑(게이트웨이)
+- `ai.AIGateway.map_content(blocks, slots, hint)` — **문구 변경 불가 설계**: LLM 은 인덱스만
+  반환({assign:{slot:block_idx}}), 텍스트 값은 호출자가 초안에서 verbatim 복사. 유효 키/인덱스만 통과.
+- config ai.cloud.map_model(기본 haiku)/map_max_tokens. _MAP_SYSTEM 에 "텍스트 절대 변경 금지" 명시.
+- 검증 [9b]: 유효 배정 보존·무효 인덱스/키 필터·응답에 인덱스(정수)만·haiku 1회.
+
+## B2. 덱 파이프라인(분류→매핑→변환)
+- `pipeline.build_page_source_slots(draft_shapes, recipe, gateway)` — text_inject 슬롯에 초안
+  텍스트 verbatim 배정(AI map_content 또는 순서 폴백). 값은 항상 초안 그대로.
+- `pipeline.run_deck(slides, assets, cfg, gateway, std_template_pptx, workdir)` — 1:1 페이지별
+  분류→매핑→표준 템플릿 변환→린트, 페이지별 표준화 출력 + deck manifest(상태 집계).
+- 검증 [7a] 오프라인 positional·문구 verbatim, [7b] mock AI 인덱스 배정(swap) 준수·문구 변경 0.
+
+## 검증 (6종 모두 PASS)
+run_selfcheck/run_pipeline_demo([6][7])/run_transform_demo/run_ai_demo([9b])/run_web_demo/run_adapters_demo.
+
+## 의도적 미수행 (실파일 검증/패키징 후속)
+- **단일 파일 덱 조립**(N 표준화 페이지 → 1 pptx) + **초안 이미지 carry-over(원위치 그대로)**:
+  OOXML 슬라이드 복제·미디어 충돌·rels 재매핑이라 실 53p deck 으로 검증 필요. 현재 run_deck 은
+  페이지별 표준화 출력을 생성(핵심 지능: verbatim 매핑·1:1 변환은 검증 완료).
+- 표/구조(shape_rebuild) 슬롯의 매핑(현재 text_inject 슬롯 중심).
+- 데몬 deck→run_deck 자동 결선(현재 deck 은 분류까지; run_deck 은 직접 호출/셀프체크로 검증).

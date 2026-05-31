@@ -14,7 +14,8 @@
               "anthropic_version": "2023-06-01",
               "classify_model": "claude-haiku-4-5",
               "recipe_model": "claude-opus-4-7",
-              "classify_max_tokens": 200, "recipe_max_tokens": 2000,
+              "map_model": "claude-haiku-4-5",
+              "classify_max_tokens": 200, "recipe_max_tokens": 2000, "map_max_tokens": 800,
               "timeout_s": 60, "enabled": true,
               "pricing": {
                 "claude-haiku-4-5": {"in_per_mtok": 1.0, "out_per_mtok": 5.0},

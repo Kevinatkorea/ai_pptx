@@ -25,6 +25,123 @@ def route(verdict, findings, cfg):
     return "ready_for_review"
 
 
+def classify_deck(slides, assets, gateway=None):
+    """다중 페이지 덱 분류(페이지 1:1). slides: [{slide_path, shapes, size}].
+
+    각 슬라이드를 독립 분류 → 페이지별 결과 리스트. 변환/매핑은 하지 않는다(분석 레이어).
+    반환: [{index, slide_path, page_type, confidence, source, signature, has_recipe}].
+    """
+    rec_names = set((assets.get("recipes") or {}).keys())
+    rec_names |= {e.get("type") for e in assets.get("page_types", []) if e.get("recipe")}
+    pages = []
+    for i, sl in enumerate(slides):
+        shapes = sl.get("shapes", [])
+        ptype, conf, src = classify.classify(shapes, assets["page_types"], gateway)
+        pages.append({
+            "index": i,
+            "slide_path": sl.get("slide_path"),
+            "page_type": ptype,
+            "confidence": conf,
+            "source": src,
+            "signature": classify.signature(shapes),
+            "has_recipe": ptype in rec_names,
+        })
+    return pages
+
+
+def _text_blocks(shapes):
+    """초안 도형에서 텍스트 블록 추출(verbatim·순서 보존). [{i, text}]."""
+    blocks = []
+    for s in shapes:
+        if s.get("tag") == "sp" and s.get("texts"):
+            paras = []
+            for t in s["texts"]:
+                paras.extend(t.get("paras") or ([t["text"]] if t.get("text") else []))
+            txt = "\n".join(p for p in paras if p).strip()
+            if txt:
+                blocks.append({"i": len(blocks), "text": txt})
+    return blocks
+
+
+def build_page_source_slots(draft_shapes, recipe, gateway=None):
+    """초안 페이지 → recipe 의 text_inject 슬롯용 source_slots(**문구 verbatim**).
+
+    AI(map_content)로 블록↔슬롯 배정하되, 값은 항상 초안 블록에서 **그대로 복사**한다
+    (모델은 인덱스만 결정 → 문구 변경 불가). gateway 없거나 실패하면 순서 기반 폴백.
+    반환: (source_slots dict, method) — method ∈ {"ai", "positional", "none"}.
+    """
+    text_ops = [op for op in recipe.get("ops", [])
+                if op.get("op") == "text_inject" and op.get("slot") and op.get("from")]
+    if not text_ops:
+        return {}, "none"
+    blocks = _text_blocks(draft_shapes)
+    slots = [{"key": op["slot"], "op": "text_inject"} for op in text_ops]
+    assign, method = {}, "positional"
+    if gateway is not None:
+        try:
+            res = gateway.map_content(blocks, slots, hint=recipe.get("type", ""))
+        except Exception:
+            res = None
+        if res and isinstance(res.get("assign"), dict) and res["assign"]:
+            assign, method = dict(res["assign"]), "ai"
+    if not assign:  # 폴백: 블록 순서 ↔ 슬롯 순서
+        for n, op in enumerate(text_ops):
+            if n < len(blocks):
+                assign[op["slot"]] = blocks[n]["i"]
+    text_by_i = {b["i"]: b["text"] for b in blocks}
+    from_by_slot = {op["slot"]: op["from"] for op in text_ops}
+    src = {}
+    for slot_key, idx in assign.items():
+        frm = from_by_slot.get(slot_key)
+        if frm and idx in text_by_i:
+            src[frm] = text_by_i[idx]   # ← 초안 텍스트 그대로(verbatim)
+    return src, method
+
+
+def run_deck(slides, assets, cfg, gateway, std_template_pptx, workdir):
+    """1:1 다중 페이지 변환. 페이지별: 분류 → (text)verbatim 매핑 → 표준 템플릿 변환 → 린트.
+
+    페이지는 1:1(분리/병합 없음). 각 페이지를 그 유형의 표준 템플릿 슬라이드로 변환해
+    `<workdir>/page_<i>.pptx` 로 출력한다(단일 파일 조립·이미지 carry-over 는 후속 패키징).
+    반환 manifest 조각: {kind:"deck", page_count, pages:[...], status}.
+    """
+    os.makedirs(workdir, exist_ok=True)
+    pages = []
+    any_fail = any_unknown = False
+    for i, sl in enumerate(slides):
+        shapes = sl.get("shapes", [])
+        ptype, conf, src = classify.classify(shapes, assets["page_types"], gateway)
+        page = {"index": i, "slide_path": sl.get("slide_path"),
+                "page_type": ptype, "confidence": conf, "source": src}
+        recipe = None if ptype == "unknown" else _resolve_recipe(ptype, assets)
+        if ptype == "unknown" or not recipe:
+            page["status"] = "new_type_queued" if ptype == "unknown" else "no_recipe"
+            any_unknown = any_unknown or ptype == "unknown"
+            any_fail = True
+            pages.append(page)
+            continue
+        source_slots, method = build_page_source_slots(shapes, recipe, gateway)
+        page["mapped"] = method
+        out_pptx = os.path.join(workdir, f"page_{i}.pptx")
+        try:
+            _produce(recipe, std_template_pptx, source_slots, cfg,
+                     os.path.join(workdir, f"wd_{i}"), out_pptx)
+            findings, _sz = _lint_output(out_pptx, _recipe_slide_paths(recipe), cfg)
+            verdict, nf, nw, _ = linter.report(findings)
+            page["transform"] = {"recipe": recipe.get("type"), "out_pptx": out_pptx}
+            page["lint"] = {"verdict": verdict, "fails": nf, "warns": nw}
+            page["status"] = route(verdict, findings, cfg)
+            any_fail = any_fail or page["status"] != "ready_for_review"
+        except Exception as e:
+            page["transform"] = {"error": f"{type(e).__name__}: {e}"}
+            page["status"] = "needs_human_approval"
+            any_fail = True
+        pages.append(page)
+    status = ("new_type_queued" if any_unknown
+              else "needs_human_approval" if any_fail else "ready_for_review")
+    return {"kind": "deck", "page_count": len(pages), "pages": pages, "status": status}
+
+
 def _resolve_recipe(page_type, assets):
     """page_type 에 대응하는 recipe(dict) 를 반환.
     우선순위: assets['recipes'][page_type] (in-memory) → page_types 엔트리의

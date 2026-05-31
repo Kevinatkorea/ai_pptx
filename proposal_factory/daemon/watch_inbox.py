@@ -85,6 +85,29 @@ def _draft_shapes(pptx_path):
     return geometry.extract_shapes(xml), size
 
 
+def _deck_slides(pptx_path):
+    """덱의 모든 슬라이드: [{slide_path, shapes, size}] (슬라이드 번호 순). soffice 불필요."""
+    out = []
+    try:
+        with zipfile.ZipFile(pptx_path) as z:
+            names = sorted(
+                (n for n in z.namelist()
+                 if n.startswith("ppt/slides/slide") and n.endswith(".xml")),
+                key=lambda n: int("".join(filter(str.isdigit, n.rsplit("/", 1)[-1])) or 0))
+            try:
+                pres = z.read("ppt/presentation.xml").decode("utf-8")
+            except KeyError:
+                pres = ""
+            size = geometry.slide_size(pres) if pres else _DEFAULT_SIZE
+            for n in names:
+                xml = z.read(n).decode("utf-8", "replace")
+                out.append({"slide_path": n, "shapes": geometry.extract_shapes(xml),
+                            "size": size})
+    except (zipfile.BadZipFile, OSError):
+        return []
+    return out
+
+
 def _load_sidecar(path):
     """`<name>.job.json` 사이드카(있으면) 로드. 없거나 깨졌으면 {}."""
     p = os.path.splitext(path)[0] + ".job.json"
@@ -117,7 +140,25 @@ def ingest(path, cfg, store, assets, gateway=None, job_id=None):
     spec = _load_sidecar(path)
 
     if ext == "pptx":
-        shapes, size = _draft_shapes(path)
+        slides = _deck_slides(path)
+        # 다중 페이지 덱(사이드카 변환 지정이 없을 때): 페이지별 분류 → deck manifest
+        if len(slides) > 1 and not spec.get("template_pptx"):
+            pages = pipeline.classify_deck(slides, assets, gateway)
+            unknown = sum(1 for p in pages if p["page_type"] == "unknown")
+            man = {"id": job_id, "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                   "kind": "deck", "page_count": len(pages), "pages": pages,
+                   "status": "new_type_queued" if unknown else "ready_for_review",
+                   "notify": notify.notify_review(
+                       job_id, cfg, f"덱 {len(pages)}페이지 분류 — 미정의 {unknown}")}
+            store.save_manifest(job_id, man)
+            try:
+                with open(path, "rb") as fh:
+                    store.save_out_pptx_local(job_id, fh.read())  # 초안 원본 검수 노출
+            except OSError:
+                pass
+            return man
+        # 단일 페이지(또는 사이드카 변환 지정) → 기존 단건 경로
+        shapes, size = (slides[0]["shapes"], slides[0]["size"]) if slides else ([], _DEFAULT_SIZE)
         job = {"id": job_id, "shapes": shapes, "size": size}
         _merge_sidecar(job, spec)
         if (job.get("template_pptx") and job.get("source_slots") is None

@@ -205,6 +205,25 @@ def main():
                       if (c["body"] or {}).get("model") == "claude-opus-4-7"]
         chk(len(opus_calls) == 1, f"Opus 모델 1회 호출 (실제 {len(opus_calls)})")
 
+        # [9b] map_content — 인덱스 배정만(문구 변경 없음), 유효성 필터
+        print("\n[9b] map_content (verbatim 배정)")
+        assign_text = json.dumps(
+            {"assign": {"title": 0, "summary": 99, "bogus": 1}}, ensure_ascii=False)
+        http = MockHttp(anthropic_payload=anth_msg(assign_text, in_tok=200, out_tok=40))
+        gw = make_gw(make_cfg(), http)
+        blocks = [{"i": 0, "text": "제안 개요"}, {"i": 1, "text": "중간"}, {"i": 2, "text": "요약문"}]
+        slots = [{"key": "title", "op": "text_inject"}, {"key": "summary", "op": "text_inject"}]
+        res = gw.map_content(blocks, slots, hint="회사개요")
+        a = (res or {}).get("assign", {})
+        chk(isinstance(res, dict) and "assign" in res, "assign dict 반환")
+        chk(a.get("title") == 0, f"유효 배정 보존 title→0 (실제 {a})")
+        chk("summary" not in a, "유효하지 않은 블록 인덱스(99) 제외")
+        chk("bogus" not in a, "유효하지 않은 슬롯 키 제외")
+        chk(all(isinstance(v, int) for v in a.values()), "값은 인덱스(정수)만 — 응답에 문구 없음")
+        map_calls = [c for c in http.calls_to("anthropic")
+                     if (c["body"] or {}).get("model") == "claude-haiku-4-5"]
+        chk(len(map_calls) == 1, f"map_model(haiku) 1회 (실제 {len(map_calls)})")
+
         # [10] Anthropic 5xx → None
         print("\n[10] Anthropic 5xx")
         http = MockHttp(anthropic_payload=anth_msg("err"), anthropic_status=500)

@@ -89,6 +89,11 @@ proposal_factory/
 - **승격 시 슬라이드 즉시 재생성**: 신규 유형 작업에 변환 입력(`transform_inputs` = `template_pptx` + `source_slots`)이 보존돼 있으면, 승격 직후 승격된 레시피로 `transform → lint → route` 를 수행해 `out.pptx` 를 생성하고 정상 검수 흐름(`ready_for_review`/`needs_human_approval`)으로 재진입한다(`pipeline.regenerate`). 입력이 없거나 토글(`assets.regenerate_on_promote`, 기본 true)이 꺼져 있으면 레시피·분류 등록만 반영하고 상태는 `recipe_promoted` 로 둔다. `transform_inputs` 는 `pipeline.run_job` 이 신규 유형 큐잉 시 자동 보존한다.
 - `ai.author_recipe_on_new_type=false` 로 끄면 큐잉만 하고 레시피 작성은 건너뛴다. `secure_offline`/`local_only`/예산초과/키없음 상황에서도 자동으로 시도하지 않는다.
 
+다중 페이지 덱 + 콘텐츠 매핑(1:1):
+- **다중 페이지 분류**(`pipeline.classify_deck`): 덱의 각 슬라이드를 1:1로 독립 분류 → `manifest.pages[]`(페이지별 유형·신뢰도·레시피 유무). 데몬이 다중 슬라이드 .pptx 를 자동으로 이 경로로 처리.
+- **AI 콘텐츠 매핑**(`ai.map_content` + `pipeline.run_deck`): 초안 페이지의 텍스트를 표준 템플릿 슬롯에 배정해 변환. **문구 변경 없음** — LLM 은 "어느 초안 블록 → 어느 슬롯"의 **인덱스만** 결정하고, 실제 텍스트 값은 초안에서 **그대로(verbatim)** 복사한다. 게이트웨이가 없거나 보안망이면 **순서 기반(positional) 폴백**으로 오프라인 동작. 페이지는 1:1(분리/병합 없음).
+  - 단일 파일 덱 조립과 초안 이미지 carry-over(원위치 그대로)는 실파일 검증이 필요한 후속 패키징 단계 — 현재 `run_deck` 은 페이지별 표준화 출력을 생성한다.
+
 HTTP 는 표준 라이브러리(urllib) 만 사용. anthropic SDK 등 외부 의존성 없음.
 
 ### 실 호출 활성화
@@ -173,6 +178,7 @@ python3 -m venv ../.venv                  # /Users/shin/AI_pptx/.venv 생성
 - 파이프라인: 결정론 분류 → 검수 대기, 신규 유형 → 큐잉(게이트웨이 없을 때 제안 없음 / cloud 가능 시 AI 레시피 초안 자동 제안·상태는 큐 유지 / cloud 불가 시 작성 건너뜀), 직원수정 diff 검출, PPTX→transform→lint 결선, 데몬 ingest(inbox→분류→store 기록·초안 노출 / 사이드카→신규 유형 큐잉+transform_inputs 보존 / 처리 후 _processed 이동 / 보관기간 만료 삭제 / launchd plist 검증 / source_slots 자동 추출) 모두 PASS.
 - transform 4-op: 합성 PPTX·이미지 픽스처로 text_inject/table_rebuild/image_reuse/shape_rebuild + 다중 슬라이드(template_slides[]) 모두 PASS.
 - 웹 UI: TestClient 로 라우트 (목록·상세·다운로드·승인·수정본 업로드+diff·AI 레시피 초안 표시·승격(멱등·실패 차단)·승격 시 page_types 자동 등록→결정론 라우팅·기존 라우팅 보존·shadow 자동 해소(특수 규칙을 일반 규칙 앞에 삽입)·승격 시 슬라이드 즉시 재생성→검수 재진입·404 등) 16단계 모두 PASS.
+- 다중 페이지/덱: 페이지별 1:1 분류(`classify_deck`)·1:1 덱 변환(`run_deck`)에서 초안 문구가 표준 템플릿에 **verbatim** 반영(오프라인 positional + mock AI 인덱스 배정) PASS.
 - 입력 어댑터: 레지스트리 등록·text 추출·pdf/hwp 우아한 실패·HWP5 레코드 파서(합성, 평/압축)·데몬 통합(.txt 변환 / .pdf 검수 큐) 모두 PASS. 파서 설치 환경에서는 실파일 단계도 자동 실행([8] 생성 PDF→pypdf 추출→데몬 변환 왕복, [9] 비-OLE .hwp→olefile 형식 거부); 미설치 환경에서는 자동 스킵하고 PASS 유지. [10] HWPX 는 stdlib(zip/xml)만 쓰므로 항상 실행(생성 .hwpx→추출→데몬 변환 왕복).
 - AI 게이트웨이: MockHttp 로 13단계 25 sub-check 모두 PASS (결정론 우선, local 폴백, cloud 폴백, secure_offline/local_only 모드, 예산 추적·초과 차단, 레시피 4-op 검증, 5xx·비-JSON·코드펜스 파싱).
 - 자기검증 중 발견·보완: 텍스트 박스 거짓 겹침 → 잉크 박스 도입, `wrap=none` 라벨 폭 보정, 표 높이는 행합 사용, `body_company_overview` 레시피의 `image_reuse` 누락 보강.
@@ -193,4 +199,5 @@ python3 -m venv ../.venv                  # /Users/shin/AI_pptx/.venv 생성
 13. ~~PDF·HWP 입력 어댑터(별도 레이어, 외부 파서 lazy)~~ → **완료**. 위 "입력 어댑터". `pip install pypdf olefile` 로 활성화.
 14. ~~HWPX(.hwpx, zip 기반) 어댑터~~ → **완료**. stdlib 만(외부 의존 없음), 실파일 e2e 검증.
 15. ~~match 술어 정교화(shadow 자동 해소·정확 카운트 가중)~~ → **완료**. 위 "shadow 자동 해소".
-16. **남은 항목(사용자 입력/결정 필요)**: 실 `.hwp` 바이너리 샘플 회귀(olefile read-only → 사용자 제공 파일 필요), 표/이미지 슬롯의 LLM 기반 콘텐츠 추출, 다종 표준 템플릿/레시피 라이브러리 구축(콘텐츠 작성).
+16. ~~다중 페이지 분류 + AI 콘텐츠 매핑(1:1·verbatim)~~ → **완료**. 위 "다중 페이지 덱 + 콘텐츠 매핑".
+17. **남은 항목**: 단일 파일 덱 조립 + 초안 이미지 carry-over(원위치) — 실 53p deck 으로 검증 필요; 실 `.hwp` 샘플 회귀; 다종 표준 템플릿/레시피 라이브러리(콘텐츠 작성); 표/구조 슬롯의 매핑 정교화.

@@ -179,6 +179,13 @@ class AIGateway:
         "op 는 [text_inject, table_rebuild, image_reuse, shape_rebuild] 중에서만 사용."
     )
 
+    _MAP_SYSTEM = (
+        "당신은 슬롯 배정기다. **텍스트를 절대 바꾸거나 다시 쓰지 마라.** "
+        "각 표준 슬롯에 가장 잘 맞는 초안 블록의 인덱스(번호)만 고른다. "
+        "출력은 단일 JSON 객체 {\"assign\": {\"<slot_key>\": <block_index>}} 만 허용. "
+        "맞는 블록이 없는 슬롯은 생략한다. 텍스트 내용은 응답에 절대 포함하지 마라."
+    )
+
     def _classify_prompt(self, sig):
         labels = self.known_page_types + ["unknown"]
         return (
@@ -199,6 +206,22 @@ class AIGateway:
             f"hint: {hint}\n"
             f"signature: {json.dumps(sig, ensure_ascii=False)}\n"
             f"shapes: {sample_json}"
+        )
+
+    def _map_prompt(self, blocks, slots, hint):
+        b = json.dumps([{"i": x["i"], "text": x["text"]} for x in blocks],
+                       ensure_ascii=False)
+        s = json.dumps([{"key": x["key"], "op": x.get("op")} for x in slots],
+                       ensure_ascii=False)
+        if len(b) > 6000:
+            b = b[:6000]
+        return (
+            "초안 텍스트 블록을 표준 템플릿의 슬롯에 배정하라. **문구는 절대 바꾸지 마라** — "
+            "슬롯마다 가장 잘 맞는 블록의 인덱스만 고른다.\n"
+            "응답: {\"assign\": {\"<slot_key>\": <block_index>}} JSON.\n\n"
+            f"hint: {hint}\n"
+            f"slots: {s}\n"
+            f"blocks: {b}"
         )
 
     @staticmethod
@@ -268,3 +291,35 @@ class AIGateway:
             if not isinstance(op, dict) or op.get("op") not in _VALID_OPS:
                 return None
         return data
+
+    def map_content(self, blocks, slots, hint=""):
+        """초안 텍스트 블록 → 표준 슬롯 '배정'(문구 변경 없음).
+
+        LLM 은 **인덱스만** 반환하고 실제 텍스트 값은 호출자가 blocks 에서 그대로(verbatim)
+        가져온다 → 모델이 문구를 바꿀 여지가 없다.
+        blocks: [{"i": int, "text": str}], slots: [{"key": str, "op": str}].
+        반환: {"assign": {slot_key: block_index}} (유효 인덱스/키만) 또는 None.
+        """
+        if not self.can_use_cloud():
+            return None
+        if not blocks or not slots:
+            return {"assign": {}}
+        model = self.cloud.get("map_model") or self.cloud.get("classify_model", "claude-haiku-4-5")
+        max_t = self.cloud.get("map_max_tokens", 800)
+        raw = self._call_anthropic(model, self._map_prompt(blocks, slots, hint),
+                                   self._MAP_SYSTEM, max_t)
+        if not raw:
+            return None
+        data = self._try_parse_json(raw)
+        if not isinstance(data, dict):
+            return None
+        assign = data.get("assign")
+        if not isinstance(assign, dict):
+            return None
+        valid_idx = {b["i"] for b in blocks}
+        valid_keys = {s["key"] for s in slots}
+        out = {}
+        for k, v in assign.items():
+            if k in valid_keys and isinstance(v, int) and v in valid_idx:
+                out[k] = v  # 값이 아니라 인덱스만 — 텍스트는 호출자가 verbatim 사용
+        return {"assign": out}

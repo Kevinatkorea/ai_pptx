@@ -28,6 +28,27 @@
   </table>
 </div>
 
+{% if man.pages %}
+<div class="card">
+  <h3>덱 페이지 분류 <span class="muted">({{ man.page_count }}페이지)</span></h3>
+  <table>
+    <thead><tr><th style="width:60px">#</th><th>페이지 유형</th><th>분류</th><th>레시피</th></tr></thead>
+    <tbody>
+    {% for p in man.pages %}
+      <tr>
+        <td>{{ p.index + 1 }}</td>
+        <td>{% if p.page_type == "unknown" %}<span class="muted">미정의</span>{% else %}<code>{{ p.page_type }}</code>{% endif %}</td>
+        <td><span class="muted">{{ p.source }}{% if p.confidence %} ({{ "%.0f"|format(p.confidence * 100) }}%){% endif %}</span></td>
+        <td>{% if p.has_recipe %}✓{% else %}<span class="muted">—</span>{% endif %}
+            {% if p.transform and p.transform.error %}<span class="findings"><span class="fail"> {{ p.transform.error }}</span></span>{% endif %}
+            {% if p.lint %} <span class="muted">lint {{ p.lint.verdict }}</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
 {% if man.recipe_proposal %}
 {% set rp = man.recipe_proposal %}
 <div class="card">
