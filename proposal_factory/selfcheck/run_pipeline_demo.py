@@ -491,6 +491,87 @@ def main():
             print(f"   ✗ 실패: {po}"); ok = False
         else:
             print("   ✓ 통과 (forced_types 로 분류 우회·지정 타입 변환)")
+
+        # 8) 단일 파일 덱 조립 + 초안 이미지 carry-over (1:1)
+        from run_transform_demo import build_template_2slide
+        tmpl_tree = os.path.join(tmp5, "deck_tmpl")
+        os.makedirs(tmpl_tree)
+        build_template_2slide(tmpl_tree)                       # slide1(breadcrumb/key_point), slide2(page2_title)
+        deck_tmpl = os.path.join(tmp5, "deck_tmpl.pptx")
+        pptx_io.pack(tmpl_tree, deck_tmpl)
+        # 초안: <p:pic> 1개 있는 1슬라이드 pptx (carry-over 소스)
+        png = os.path.join(tmp5, "p.png")
+        make_png(png)
+        PIC = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+               '<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+               'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" '
+               'xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">'
+               '<p:cSld><p:spTree>'
+               '<p:nvGrpSpPr><p:cNvPr id="1" name="G"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>'
+               '<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>'
+               '<p:pic><p:nvPicPr><p:cNvPr id="5" name="img"/><p:cNvPicPr/><p:nvPr/></p:nvPicPr>'
+               '<p:blipFill><a:blip r:embed="rId1"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>'
+               '<p:spPr><a:xfrm><a:off x="100" y="100"/><a:ext cx="500" cy="500"/></a:xfrm>'
+               '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>'
+               '</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>')
+        pic_rels = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+                    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/pic.png"/>'
+                    '</Relationships>')
+        ct_pic = CONTENT_TYPES.replace("</Types>", '<Default Extension="png" ContentType="image/png"/></Types>')
+        dtree = os.path.join(tmp5, "draft_tree")
+        for rel, content in {"[Content_Types].xml": ct_pic, "ppt/presentation.xml": PRESENTATION_XML,
+                             "ppt/slides/slide1.xml": PIC, "ppt/slides/_rels/slide1.xml.rels": pic_rels}.items():
+            p = os.path.join(dtree, rel)
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            open(p, "w", encoding="utf-8").write(content)
+        os.makedirs(os.path.join(dtree, "ppt/media"), exist_ok=True)
+        shutil.copyfile(png, os.path.join(dtree, "ppt/media/pic.png"))
+        draft_pptx = os.path.join(tmp5, "draft_pic.pptx")
+        pptx_io.pack(dtree, draft_pptx)
+
+        rc1 = {"type": "t1", "template_slide": "ppt/slides/slide1.xml",
+               "ops": [{"op": "text_inject", "slot": "breadcrumb", "from": "breadcrumb"},
+                       {"op": "text_inject", "slot": "key_point", "from": "summary"}]}
+        rc2 = {"type": "t2", "template_slide": "ppt/slides/slide2.xml",
+               "ops": [{"op": "text_inject", "slot": "page2_title", "from": "page2_title"}]}
+        assets_d = {"page_types": [], "recipes": {"t1": rc1, "t2": rc2}, "base_dir": tmp5}
+        dslides = [{"slide_path": "ppt/slides/slide1.xml",
+                    "shapes": [_sp("a", "AAA브레드"), _sp("b", "BBB키포인트")], "size": SIZE},
+                   {"slide_path": "ppt/slides/slide1.xml",   # 같은 초안 슬라이드(pic) 재사용
+                    "shapes": [_sp("c", "CCC제목")], "size": SIZE}]
+        out_deck = os.path.join(tmp5, "assembled.pptx")
+        res_d = pipeline.run_deck(dslides, assets_d, CFG, None, deck_tmpl,
+                                  os.path.join(tmp5, "deck_wd"),
+                                  forced_types={0: "t1", 1: "t2"},
+                                  out_deck=out_deck, draft_pptx=draft_pptx)
+        from xml.dom import minidom
+        import re as _re2
+        with zipfile.ZipFile(out_deck) as z:
+            names = z.namelist()
+            xml_ok = True
+            for n in names:
+                if n.endswith((".xml", ".rels")):
+                    try:
+                        minidom.parseString(z.read(n))
+                    except Exception:
+                        xml_ok = False
+            px = z.read("ppt/presentation.xml").decode("utf-8")
+            n_sld = len(_re2.findall(r"<p:sldId\b", px))
+            newp = sorted((n for n in names if _re2.match(r"ppt/slides/slide\d+\.xml$", n)),
+                          key=lambda n: int(_re2.search(r"(\d+)", n.split("/")[-1]).group(1)))[-2:]
+            x_p0 = z.read(newp[0]).decode("utf-8")
+            x_p1 = z.read(newp[1]).decode("utf-8")
+            carried = [n for n in names if n.startswith("ppt/media/p0_")]
+        print(f"\n[8] 덱 조립+carry → 상태={res_d['status']} sldIdLst={n_sld} XML유효={xml_ok}")
+        ok8 = (res_d.get("out_deck") == out_deck and xml_ok and n_sld == 2
+               and "AAA브레드" in x_p0 and "BBB키포인트" in x_p0
+               and "CCC제목" in x_p1
+               and "<p:pic>" in x_p0 and len(carried) >= 1)
+        if not ok8:
+            print(f"   ✗ 실패: carried={carried} p0텍스트={'AAA브레드' in x_p0}"); ok = False
+        else:
+            print(f"   ✓ 통과 (1:1 단일덱 조립·verbatim·이미지 carry {len(carried)}개, 구조 유효)")
     finally:
         shutil.rmtree(tmp5, ignore_errors=True)
 

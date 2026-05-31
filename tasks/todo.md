@@ -815,3 +815,29 @@ run_selfcheck/run_pipeline_demo([6][7])/run_transform_demo/run_ai_demo([9b])/run
 - 표준 템플릿 pptx(디자인가이드2.0, 8.9MB)는 미커밋(사용자 자산) — recipe 는 그 내부 슬라이드 경로 참조,
   런타임에 std_template_pptx 로 제공.
 - group_fill 슬롯의 초안→배열 자동 매핑, 단일 파일 덱 조립 + 이미지 carry-over(후속).
+
+---
+
+# 라운드 — 단일 파일 덱 조립 + 초안 이미지 carry-over (engine/deck.py)
+
+제약: 페이지 1:1, 이미지 그대로, 문구 verbatim. 실 초안 파일이 없어 디자인가이드2.0 실슬라이드를
+기질로 검증(사용자 실초안은 그대로 투입 가능).
+
+## 산출물
+- `engine/deck.py` — `pics_from`(초안 <p:pic>+미디어 추출), `_carry_pics`(위치 그대로 주입·미디어
+  namespaced·rels·CT), `assemble`(표준 템플릿 복제 기반 1:1 다중 슬라이드 조립·presentation
+  sldIdLst 재지정·CT override). 표준 라이브러리만.
+- `engine/pipeline.run_deck(out_deck=, draft_pptx=)` — 조립 경로 결선(+ 조립 슬라이드 린트·라우팅).
+- `engine/transform.py` — image_reuse/table_rebuild **source 없으면 skip**(템플릿 자리 보존;
+  이미지는 carry-over, 표는 템플릿 유지). 조립 견고성 확보.
+- `selfcheck/run_pipeline_demo.py [8]` — 합성 템플릿+이미지 초안으로 조립·carry·구조 검증.
+
+## 검증
+- 합성 [8]: 단일덱 sldIdLst=2·XML 유효·verbatim·carry 이미지.
+- 실파일(디자인가이드2.0): run_deck(out_deck, draft) → out 생성, sldIdLst 2, carry 미디어 5,
+  p0 PASS·p1 FAIL→needs_human_approval(린터 라우팅 설계대로). 6종 회귀 PASS.
+
+## 남은 것
+- PowerPoint 실제 열람 확인(헤드리스 구조검증까지만 수행) — 사용자 확인 권장.
+- 조립 시 원본 템플릿 슬라이드 파트가 미표시로 잔존(파일 크기) — 추후 정리.
+- group_fill 슬롯의 초안→배열 자동 매핑, table_rebuild 자동 입력.

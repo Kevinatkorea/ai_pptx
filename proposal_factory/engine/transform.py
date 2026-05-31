@@ -227,7 +227,9 @@ def _make_table_row(h: int, label: str, value: str,
 
 
 def _op_table_rebuild(op, src, state):
-    rows = _get_field(src, op["from"]) or []
+    rows = _get_field(src, op["from"])
+    if rows is None:
+        return  # 표 데이터 없음 → 건너뜀(템플릿 표 보존)
     style = op.get("style", {}) or {}
     label_fill = style.get("label_col_fill", "F2F2F2")
     hi_fill = style.get("highlight_fill", "DCEFFE")
@@ -315,10 +317,10 @@ def _make_pic(sid: int, name: str, rid: str, x: int, y: int, cx: int, cy: int) -
 def _op_image_reuse(op, src, state):
     img = _get_field(src, op["from"])
     if not img or "path" not in img:
-        raise ValueError(f"image_reuse: missing image data for {op['from']}")
+        return  # 이미지 데이터 없음 → 건너뜀(템플릿 자리 보존; 초안 이미지는 carry-over 가 담당)
     src_path = img["path"]
     if not os.path.isfile(src_path):
-        raise FileNotFoundError(src_path)
+        return  # 파일 없음 → 건너뜀
 
     fname = _copy_media(state["template_dir"], src_path)
     ext = os.path.splitext(fname)[1].lstrip(".").lower()

@@ -94,7 +94,8 @@ proposal_factory/
 - **AI 콘텐츠 매핑**(`ai.map_content` + `pipeline.run_deck`): 초안 페이지의 텍스트를 표준 템플릿 슬롯에 배정해 변환. **문구 변경 없음** — LLM 은 "어느 초안 블록 → 어느 슬롯"의 **인덱스만** 결정하고, 실제 텍스트 값은 초안에서 **그대로(verbatim)** 복사한다. 게이트웨이가 없거나 보안망이면 **순서 기반(positional) 폴백**으로 오프라인 동작. 페이지는 1:1(분리/병합 없음).
   - **운영자 페이지별 타입 지정**: 시그니처로 구분이 어려운 grouped 텍스트 타입들이 많아, `run_deck(forced_types=...)` 로 페이지마다 타입을 명시 지정할 수 있다(분류 우회, `source="operator"`).
   - **`group_fill` op**: 슬롯이 그룹(`grpSp`)이면 내부 텍스트박스들을 입력 배열로 **순서대로 verbatim** 채운다(text_inject 는 단일 텍스트박스 전용). 그룹의 비텍스트 도형/구조는 보존.
-  - 단일 파일 덱 조립과 초안 이미지 carry-over(원위치 그대로)는 실파일 검증이 필요한 후속 패키징 단계 — 현재 `run_deck` 은 페이지별 표준화 출력을 생성한다.
+  - **단일 파일 덱 조립 + 초안 이미지 carry-over**(`engine/deck.py`): `run_deck(out_deck=..., draft_pptx=...)` 로 표준 템플릿 기반 1:1 단일 PPTX 를 조립한다. 각 페이지는 그 유형의 표준 슬라이드를 복제·변환한 새 슬라이드가 되고(presentation sldIdLst 재지정), 초안 슬라이드의 이미지(`<p:pic>`)는 **위치 그대로** 옮겨진다(미디어 namespaced·rels 재매핑). 실제 SKB 템플릿(디자인가이드2.0)으로 구조 검증 완료.
+  - 콘텐츠가 없는 op 는 건너뛴다(템플릿 자리 보존): `image_reuse`/`table_rebuild` 는 source 없으면 no-op → 이미지는 carry-over, 표는 템플릿 유지.
 
 HTTP 는 표준 라이브러리(urllib) 만 사용. anthropic SDK 등 외부 의존성 없음.
 
@@ -202,4 +203,6 @@ python3 -m venv ../.venv                  # /Users/shin/AI_pptx/.venv 생성
 14. ~~HWPX(.hwpx, zip 기반) 어댑터~~ → **완료**. stdlib 만(외부 의존 없음), 실파일 e2e 검증.
 15. ~~match 술어 정교화(shadow 자동 해소·정확 카운트 가중)~~ → **완료**. 위 "shadow 자동 해소".
 16. ~~다중 페이지 분류 + AI 콘텐츠 매핑(1:1·verbatim)~~ → **완료**. 위 "다중 페이지 덱 + 콘텐츠 매핑".
-17. **남은 항목**: 단일 파일 덱 조립 + 초안 이미지 carry-over(원위치) — 실 53p deck 으로 검증 필요; 실 `.hwp` 샘플 회귀; 다종 표준 템플릿/레시피 라이브러리(콘텐츠 작성); 표/구조 슬롯의 매핑 정교화.
+17. ~~단일 파일 덱 조립 + 초안 이미지 carry-over(원위치)~~ → **완료**(`engine/deck.py`). 실 SKB 템플릿 구조 검증.
+18. ~~SKB 표준 템플릿 타입 라이브러리~~ → **완료**(`assets/recipes/skb/` 22종, 실파일 전수 검증).
+19. **남은 항목**: PowerPoint 실제 열람 확인(조립 결과), group_fill 슬롯의 초안→배열 자동 매핑, 실 `.hwp` 샘플 회귀, 표 슬롯 매핑(table_rebuild 자동 입력), 조립 시 원본 템플릿 슬라이드 파트 정리(현재 미표시 잔존).

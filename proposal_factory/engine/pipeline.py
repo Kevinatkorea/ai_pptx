@@ -11,7 +11,7 @@ import tempfile
 import time
 import zipfile
 
-from . import classify, geometry, linter, notify, pptx_io, transform
+from . import classify, deck, geometry, linter, notify, pptx_io, transform
 
 
 def route(verdict, findings, cfg):
@@ -109,16 +109,18 @@ def _forced_type(i, forced_types):
     return None
 
 
-def run_deck(slides, assets, cfg, gateway, std_template_pptx, workdir, forced_types=None):
-    """1:1 다중 페이지 변환. 페이지별: (분류 또는 운영자 지정) → verbatim 매핑 → 표준 템플릿 변환 → 린트.
+def run_deck(slides, assets, cfg, gateway, std_template_pptx, workdir,
+             forced_types=None, out_deck=None, draft_pptx=None):
+    """1:1 다중 페이지 변환. 페이지별: (분류/운영자 지정) → verbatim 매핑 → 표준 템플릿 변환 → 린트.
 
-    페이지는 1:1(분리/병합 없음). 각 페이지를 그 유형의 표준 템플릿 슬라이드로 변환해
-    `<workdir>/page_<i>.pptx` 로 출력한다(단일 파일 조립·이미지 carry-over 는 후속 패키징).
-    forced_types 가 주어지면 그 페이지는 분류 대신 지정 타입 사용(운영자 페이지별 지정).
-    반환 manifest 조각: {kind:"deck", page_count, pages:[...], status}.
+    페이지는 1:1(분리/병합 없음). forced_types 가 있으면 그 페이지는 분류 대신 지정 타입 사용.
+    out_deck 가 주어지면 표준 템플릿 기반으로 **단일 파일 덱**으로 조립하고(deck.assemble),
+    draft_pptx 가 함께 있으면 각 초안 슬라이드의 **이미지를 위치 그대로 carry-over** 한다.
+    out_deck 가 없으면 페이지별 개별 출력(`<workdir>/page_<i>.pptx`).
+    반환 manifest 조각: {kind:"deck", page_count, pages:[...], status, [out_deck]}.
     """
     os.makedirs(workdir, exist_ok=True)
-    pages = []
+    pages, specs = [], []
     any_fail = any_unknown = False
     for i, sl in enumerate(slides):
         shapes = sl.get("shapes", [])
@@ -138,24 +140,54 @@ def run_deck(slides, assets, cfg, gateway, std_template_pptx, workdir, forced_ty
             continue
         source_slots, method = build_page_source_slots(shapes, recipe, gateway)
         page["mapped"] = method
-        out_pptx = os.path.join(workdir, f"page_{i}.pptx")
-        try:
-            _produce(recipe, std_template_pptx, source_slots, cfg,
-                     os.path.join(workdir, f"wd_{i}"), out_pptx)
-            findings, _sz = _lint_output(out_pptx, _recipe_slide_paths(recipe), cfg)
-            verdict, nf, nw, _ = linter.report(findings)
-            page["transform"] = {"recipe": recipe.get("type"), "out_pptx": out_pptx}
-            page["lint"] = {"verdict": verdict, "fails": nf, "warns": nw}
-            page["status"] = route(verdict, findings, cfg)
-            any_fail = any_fail or page["status"] != "ready_for_review"
-        except Exception as e:
-            page["transform"] = {"error": f"{type(e).__name__}: {e}"}
-            page["status"] = "needs_human_approval"
-            any_fail = True
         pages.append(page)
+        specs.append((page, recipe, source_slots, sl.get("slide_path")))
+
+    if out_deck and specs:
+        page_specs = [{"src_slide": rc.get("template_slide") or _recipe_slide_paths(rc)[0],
+                       "ops": rc.get("ops", []), "source_slots": ss,
+                       "draft_slide_path": sp}
+                      for (pg, rc, ss, sp) in specs]
+        try:
+            _, new_paths = deck.assemble(std_template_pptx, page_specs, out_deck, cfg,
+                                         draft_pptx=draft_pptx)
+            for (pg, rc, _ss, _sp), npath in zip(specs, new_paths):
+                shapes2, size2 = _shapes_from_pptx(out_deck, npath)
+                findings = linter.lint(shapes2, size2[0], size2[1], cfg)
+                verdict, nf, nw, _ = linter.report(findings)
+                pg["transform"] = {"recipe": rc.get("type"), "slide_path": npath,
+                                   "out_deck": out_deck}
+                pg["lint"] = {"verdict": verdict, "fails": nf, "warns": nw}
+                pg["status"] = route(verdict, findings, cfg)
+                any_fail = any_fail or pg["status"] != "ready_for_review"
+        except Exception as e:
+            for pg, *_ in specs:
+                pg["status"] = "needs_human_approval"
+            any_fail = True
+            out_deck = {"error": f"{type(e).__name__}: {e}"}
+    else:
+        for pg, rc, ss, _sp in specs:
+            out_pptx = os.path.join(workdir, f"page_{pg['index']}.pptx")
+            try:
+                _produce(rc, std_template_pptx, ss, cfg,
+                         os.path.join(workdir, f"wd_{pg['index']}"), out_pptx)
+                findings, _sz = _lint_output(out_pptx, _recipe_slide_paths(rc), cfg)
+                verdict, nf, nw, _ = linter.report(findings)
+                pg["transform"] = {"recipe": rc.get("type"), "out_pptx": out_pptx}
+                pg["lint"] = {"verdict": verdict, "fails": nf, "warns": nw}
+                pg["status"] = route(verdict, findings, cfg)
+                any_fail = any_fail or pg["status"] != "ready_for_review"
+            except Exception as e:
+                pg["transform"] = {"error": f"{type(e).__name__}: {e}"}
+                pg["status"] = "needs_human_approval"
+                any_fail = True
+
     status = ("new_type_queued" if any_unknown
               else "needs_human_approval" if any_fail else "ready_for_review")
-    return {"kind": "deck", "page_count": len(pages), "pages": pages, "status": status}
+    man = {"kind": "deck", "page_count": len(pages), "pages": pages, "status": status}
+    if isinstance(out_deck, str):
+        man["out_deck"] = out_deck
+    return man
 
 
 def _resolve_recipe(page_type, assets):

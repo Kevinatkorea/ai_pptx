@@ -1,0 +1,208 @@
+"""deck.py — 1:1 다중 페이지 덱 조립 + 초안 이미지 carry-over.
+
+표준 템플릿(마스터/레이아웃/테마/미디어 포함)을 기반으로, 초안 페이지 순서대로(1:1) 각 유형의
+템플릿 슬라이드를 **복제·변환**해 새 슬라이드로 추가하고, presentation 의 sldIdLst 를 그 순서로
+재지정한다. 초안 슬라이드의 이미지(<p:pic>)는 **위치 그대로** 출력 슬라이드에 옮긴다(디자이너
+추후 변경). 표준 라이브러리만 사용(transform 의 헬퍼 재사용).
+
+원본 템플릿 슬라이드 파트는 남되 sldIdLst 에서 빠져 화면에는 출력 페이지만 보인다.
+"""
+import os
+import re
+import shutil
+import zipfile
+
+from . import pptx_io, transform
+
+_CT_BY_EXT = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
+              "gif": "image/gif", "emf": "image/x-emf", "wmf": "image/x-wmf",
+              "bmp": "image/bmp", "tiff": "image/tiff"}
+_REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
+_IMG_REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+_SLD_REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide"
+
+
+def _rels_path(slide_path):
+    d, b = os.path.split(slide_path)
+    return f"{d}/_rels/{b}.rels"
+
+
+def pics_from(z, slide_path):
+    """draft 슬라이드의 [(pic_xml, media_arcname, media_bytes, ext)] 추출(위치/크기 포함)."""
+    try:
+        sx = z.read(slide_path).decode("utf-8", "replace")
+    except KeyError:
+        return []
+    relmap = {}
+    try:
+        rx = z.read(_rels_path(slide_path)).decode("utf-8", "replace")
+        for m in re.finditer(r'Id="(rId\d+)"[^>]*?Target="([^"]+)"', rx):
+            relmap[m.group(1)] = m.group(2)
+    except KeyError:
+        pass
+    out = []
+    for m in re.finditer(r'<p:pic\b', sx):
+        st = m.start()
+        en = transform._match_block(sx, st, "pic")
+        block = sx[st:en]
+        bl = re.search(r'<a:blip[^>]*?r:embed="(rId\d+)"', block)
+        if not bl:
+            continue
+        target = relmap.get(bl.group(1))
+        if not target:
+            continue
+        arc = os.path.normpath(os.path.join("ppt/slides", target)).replace(os.sep, "/")
+        try:
+            data = z.read(arc)
+        except KeyError:
+            continue
+        out.append((block, bl.group(1), arc, data, os.path.splitext(arc)[1].lstrip(".").lower()))
+    return out
+
+
+def _ensure_ct_ext(tree, ext):
+    ctp = os.path.join(tree, "[Content_Types].xml")
+    with open(ctp, encoding="utf-8") as fh:
+        xml = fh.read()
+    if f'Extension="{ext}"' in xml:
+        return
+    ct = _CT_BY_EXT.get(ext, "application/octet-stream")
+    xml = xml.replace("</Types>", f'<Default Extension="{ext}" ContentType="{ct}"/></Types>')
+    with open(ctp, "w", encoding="utf-8") as fh:
+        fh.write(xml)
+
+
+def _add_slide_ct(tree, k):
+    ctp = os.path.join(tree, "[Content_Types].xml")
+    with open(ctp, encoding="utf-8") as fh:
+        xml = fh.read()
+    part = f"/ppt/slides/slide{k}.xml"
+    if f'PartName="{part}"' in xml:
+        return
+    ov = (f'<Override PartName="{part}" ContentType='
+          '"application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>')
+    with open(ctp, "w", encoding="utf-8") as fh:
+        fh.write(xml.replace("</Types>", ov + "</Types>"))
+
+
+def _carry_pics(tree, slide_path, pics, tag):
+    """draft pics 를 tree 의 slide_path 에 추가(미디어 namespaced + rels + CT). 위치 보존."""
+    if not pics:
+        return
+    sp = os.path.join(tree, slide_path)
+    with open(sp, encoding="utf-8") as fh:
+        sx = fh.read()
+    relp = os.path.join(tree, _rels_path(slide_path))
+    os.makedirs(os.path.dirname(relp), exist_ok=True)
+    if os.path.exists(relp):
+        with open(relp, encoding="utf-8") as fh:
+            rx = fh.read()
+    else:
+        rx = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+              f'<Relationships xmlns="{_REL_NS}"></Relationships>')
+    next_rid = transform._max_rid(rx) + 1
+    media_dir = os.path.join(tree, "ppt", "media")
+    os.makedirs(media_dir, exist_ok=True)
+    add_pics, add_rels = [], []
+    for block, _rid, arc, data, ext in pics:
+        newname = f"{tag}_{os.path.basename(arc)}"
+        with open(os.path.join(media_dir, newname), "wb") as fh:
+            fh.write(data)
+        _ensure_ct_ext(tree, ext)
+        newrid = f"rId{next_rid}"
+        next_rid += 1
+        add_rels.append(f'<Relationship Id="{newrid}" Type="{_IMG_REL}" '
+                        f'Target="../media/{newname}"/>')
+        add_pics.append(re.sub(r'(r:embed=")rId\d+(")', rf'\g<1>{newrid}\g<2>', block, count=1))
+    sx = sx.replace("</p:spTree>", "".join(add_pics) + "</p:spTree>", 1)
+    rx = rx.replace("</Relationships>", "".join(add_rels) + "</Relationships>")
+    with open(sp, "w", encoding="utf-8") as fh:
+        fh.write(sx)
+    with open(relp, "w", encoding="utf-8") as fh:
+        fh.write(rx)
+
+
+def _repoint_presentation(tree, slide_ks):
+    """presentation.xml 의 sldIdLst 를 새 슬라이드(slide_ks 순서)로 재지정 + rels 추가."""
+    pres = os.path.join(tree, "ppt", "presentation.xml")
+    relp = os.path.join(tree, "ppt", "_rels", "presentation.xml.rels")
+    with open(pres, encoding="utf-8") as fh:
+        px = fh.read()
+    if os.path.exists(relp):
+        with open(relp, encoding="utf-8") as fh:
+            rx = fh.read()
+    else:
+        os.makedirs(os.path.dirname(relp), exist_ok=True)
+        rx = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+              f'<Relationships xmlns="{_REL_NS}"></Relationships>')
+    next_rid = transform._max_rid(rx) + 1
+    rels, sldids, sid = [], [], 256
+    for k in slide_ks:
+        rid = f"rId{next_rid}"
+        next_rid += 1
+        rels.append(f'<Relationship Id="{rid}" Type="{_SLD_REL}" Target="slides/slide{k}.xml"/>')
+        sldids.append(f'<p:sldId id="{sid}" r:id="{rid}"/>')
+        sid += 1
+    rx = rx.replace("</Relationships>", "".join(rels) + "</Relationships>")
+    new_lst = "<p:sldIdLst>" + "".join(sldids) + "</p:sldIdLst>"
+    if re.search(r'<p:sldIdLst\b.*?</p:sldIdLst>', px, re.S):
+        px = re.sub(r'<p:sldIdLst\b.*?</p:sldIdLst>', new_lst, px, count=1, flags=re.S)
+    elif '<p:sldIdLst/>' in px:
+        px = px.replace('<p:sldIdLst/>', new_lst, 1)
+    elif '</p:sldMasterIdLst>' in px:
+        px = px.replace('</p:sldMasterIdLst>', '</p:sldMasterIdLst>' + new_lst, 1)
+    elif '<p:sldSz' in px:           # 마스터 목록이 없으면 슬라이드 크기 앞에 삽입
+        px = re.sub(r'(<p:sldSz\b)', new_lst + r'\1', px, count=1)
+    else:
+        px = px.replace('</p:presentation>', new_lst + '</p:presentation>', 1)
+    with open(pres, "w", encoding="utf-8") as fh:
+        fh.write(px)
+    with open(relp, "w", encoding="utf-8") as fh:
+        fh.write(rx)
+
+
+def assemble(template_pptx, pages, out_pptx, cfg, draft_pptx=None):
+    """표준 템플릿 기반 1:1 덱 조립.
+
+    pages: [{src_slide, ops, source_slots, draft_slide_path?}].
+      각 page → 표준 템플릿의 src_slide 를 복제 → ops 변환 → (초안 이미지 carry) → 새 slideK.
+    draft_pptx: 초안 PPTX 경로(이미지 carry-over 소스). page.draft_slide_path 와 함께 사용.
+    반환: out_pptx 경로.
+    """
+    workroot = os.path.dirname(os.path.abspath(out_pptx)) or "."
+    tree = os.path.join(workroot, f"_assemble_{os.path.basename(out_pptx)}")
+    if os.path.isdir(tree):
+        shutil.rmtree(tree)
+    pptx_io.unpack(template_pptx, tree)
+
+    slidedir = os.path.join(tree, "ppt", "slides")
+    existing = [int(re.match(r'slide(\d+)\.xml$', n).group(1))
+                for n in os.listdir(slidedir) if re.match(r'slide(\d+)\.xml$', n)]
+    m = max(existing) if existing else 0
+
+    dz = zipfile.ZipFile(draft_pptx) if draft_pptx else None
+    try:
+        ks = []
+        for i, pg in enumerate(pages):
+            k = m + 1 + i
+            src = pg["src_slide"]
+            shutil.copyfile(os.path.join(tree, src), os.path.join(slidedir, f"slide{k}.xml"))
+            src_rels = os.path.join(tree, _rels_path(src))
+            if os.path.exists(src_rels):
+                os.makedirs(os.path.join(slidedir, "_rels"), exist_ok=True)
+                shutil.copyfile(src_rels, os.path.join(slidedir, "_rels", f"slide{k}.xml.rels"))
+            slide_path = f"ppt/slides/slide{k}.xml"
+            transform._apply_one(slide_path, pg.get("ops", []),
+                                 pg.get("source_slots", {}), tree, cfg)
+            if dz is not None and pg.get("draft_slide_path"):
+                _carry_pics(tree, slide_path, pics_from(dz, pg["draft_slide_path"]), f"p{i}")
+            _add_slide_ct(tree, k)
+            ks.append(k)
+        _repoint_presentation(tree, ks)
+    finally:
+        if dz is not None:
+            dz.close()
+    pptx_io.clean(tree)
+    pptx_io.pack(tree, out_pptx)
+    shutil.rmtree(tree, ignore_errors=True)
+    return out_pptx, [f"ppt/slides/slide{k}.xml" for k in ks]
