@@ -256,13 +256,16 @@ print(man["status"])                          # ready_for_review / needs_human_a
 
 ## 7. 신규 페이지 유형 추가 워크플로우
 
+> **작성 도우미**: `python3 tools/inspect_template.py <template.pptx> --type <유형>` 를 먼저 돌리면
+> 슬라이드별 도형·시그니처를 분석해 `template_slide` 경로, `page_types` match, recipe 골격,
+> source_slots 키를 **붙여넣기 가능한 형태로 제안**한다(2·3·4단계 자동화). 빈 박스 슬롯의
+> image_reuse↔shape_rebuild 선택과 `from` 키 매핑만 사람이 마무리하면 된다.
+
 1. **디자인**: PowerPoint 에서 새 페이지 디자인 → 모든 변동 요소에 `slot:<key>` 이름 부여
 2. **슬라이드 번호 확인**: PPTX 저장 후 unzip → `ppt/slides/` 안에서 슬라이드 XML 번호 확인
-   ```bash
-   unzip -l template.pptx | grep slides/slide
-   ```
-3. **유형 등록**: `assets/page_types.json` 에 분류 시그니처 + recipe 경로 추가
-4. **레시피 작성**: `assets/recipes/<유형>.json` 에 4-op 조합
+   (도우미가 자동 출력. 수동: `unzip -l template.pptx | grep slides/slide`)
+3. **유형 등록**: `assets/page_types.json` 에 분류 시그니처 + recipe 경로 추가(도우미 제안 활용)
+4. **레시피 작성**: `assets/recipes/<유형>.json` 에 4-op 조합(도우미 골격에서 op·from 마무리)
 5. **실 데이터 1건 검증**: 고객 초안 1건을 source_slots 로 변환 → 파이프라인 실행 → 출력 검수
 6. **학습 누적**: 직원이 출력본을 수정하면 `learn.py` 가 diff 를 기록 → 반복 패턴은 design_guide/recipe 로 자동 승격
 
