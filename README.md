@@ -93,4 +93,4 @@ python3 -m venv .venv
 **Proprietary — All Rights Reserved.** 사내 독점 소프트웨어로, 저작권자의 사전 서면 허가
 없이 복제·수정·배포·사용할 수 없다. 전문은 [`LICENSE`](LICENSE) 참고.
 
-© 2026 Kevinatkorea. All rights reserved.
+© 2026 Mostvisual. All rights reserved.
