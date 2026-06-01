@@ -264,6 +264,11 @@ print(man["status"])                          # ready_for_review / needs_human_a
 
 ## 7. 신규 페이지 유형 추가 워크플로우
 
+> **슬롯 명명 누락 탐지**: `python3 tools/detect_slots.py <template.pptx>` — `slot:<key>` 로
+> 명명되지 않은 **플레이스홀더 텍스트**("…입력하세요"/"제목"/"내용" 등)를 찾아 `slot:title`/`body`/`text*`
+> 추천과 함께 보여준다(그룹 내부까지, 고정 디자인·반복 텍스트는 제외). 출력에 플레이스홀더가
+> 남지 않으려면 여기 나온 도형을 모두 명명해야 한다. 일반 콘텐츠까지 보려면 `--all`.
+
 > **작성 도우미**: `python3 tools/inspect_template.py <template.pptx> --type <유형>` 를 먼저 돌리면
 > 슬라이드별 도형·시그니처를 분석해 `template_slide` 경로, `page_types` match, recipe 골격,
 > source_slots 키를 **붙여넣기 가능한 형태로 제안**한다(2·3·4단계 자동화). 빈 박스 슬롯의
