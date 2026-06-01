@@ -473,6 +473,36 @@ def main():
         assert_true("내용을 입력하세요" not in px, "미매핑 슬롯 플레이스홀더 비워짐", errors)
         assert_true('name="slot:left"' in px, "미매핑 슬롯 도형은 보존(텍스트만 비움)", errors)
 
+        print("\n[13] 플레이스홀더 패턴 클리너(이름 없는 텍스트도)")
+        pat_slide = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+                     '<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+                     'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" '
+                     'xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">'
+                     '<p:cSld><p:spTree>'
+                     '<p:nvGrpSpPr><p:cNvPr id="1" name="G"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>'
+                     '<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>'
+                     '<p:sp><p:nvSpPr><p:cNvPr id="2" name="직사각형 99"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr>'
+                     '<p:spPr><a:xfrm><a:off x="1" y="1"/><a:ext cx="5" cy="2"/></a:xfrm></p:spPr>'
+                     '<p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="ko-KR"/><a:t>내용을 입력하세요</a:t></a:r></a:p></p:txBody></p:sp>'
+                     '<p:sp><p:nvSpPr><p:cNvPr id="3" name="직사각형 100"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr>'
+                     '<p:spPr><a:xfrm><a:off x="1" y="4"/><a:ext cx="5" cy="2"/></a:xfrm></p:spPr>'
+                     '<p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="ko-KR"/><a:t>실제 제안 내용입니다</a:t></a:r></a:p></p:txBody></p:sp>'
+                     '</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>')
+        cltree = os.path.join(tmp, "cltree")
+        for rel, content in {"[Content_Types].xml": CONTENT_TYPES, "ppt/presentation.xml": PRESENTATION_XML,
+                             "ppt/slides/slide1.xml": pat_slide,
+                             "ppt/slides/_rels/slide1.xml.rels": SLIDE1_RELS}.items():
+            p = os.path.join(cltree, rel)
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            open(p, "w", encoding="utf-8").write(content)
+        clcfg = dict(CFG)
+        clcfg["transform"] = {"clear_placeholder_patterns": ["입력하세요"]}
+        transform.apply({"type": "c", "template_slide": "ppt/slides/slide1.xml", "ops": []},
+                        {}, cltree, os.path.join(tmp, "clout.pptx"), clcfg)
+        clx = zipfile.ZipFile(os.path.join(tmp, "clout.pptx")).read("ppt/slides/slide1.xml").decode("utf-8")
+        assert_true("내용을 입력하세요" not in clx, "이름 없는 플레이스홀더 비워짐(패턴)", errors)
+        assert_true("실제 제안 내용입니다" in clx, "정상 콘텐츠는 보존", errors)
+
         print("\n=== TRANSFORM SELF-CHECK:",
               "PASS" if not errors else f"FAIL ({len(errors)})", "===")
         sys.exit(0 if not errors else 1)

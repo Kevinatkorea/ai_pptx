@@ -449,6 +449,17 @@ def _clear_unmapped(xml, mapped_keys):
     return xml
 
 
+def _clear_placeholders(xml, patterns):
+    """플레이스홀더 패턴 텍스트를 비운다(슬롯 명명 무관). 명백한 템플릿 안내문구 제거용.
+    <a:t> 단위로 검사 — 내용에 패턴이 들어있으면 그 런을 빈 문자열로."""
+    if not patterns:
+        return xml
+    return re.sub(
+        r'<a:t>([^<]*)</a:t>',
+        lambda m: '<a:t></a:t>' if any(p in m.group(1) for p in patterns) else m.group(0),
+        xml)
+
+
 def _remap_fonts(xml, mapping):
     """슬라이드 XML 의 모든 typeface="X" 를 mapping[X] 로 치환(미설치/비렌더 폰트 대체).
     rPr/defRPr/endParaRPr 등 모든 폰트 참조에 적용. mapping 없으면 원본 그대로."""
@@ -491,9 +502,13 @@ def _apply_one(slide_path: str, ops: list, source_slots: dict,
         fn(op, source_slots, state)
 
     # recipe 가 안 채운 named 슬롯의 플레이스홀더 비우기(표/이미지 슬롯 제외)
-    if (cfg or {}).get("transform", {}).get("clear_unmapped_slots", True):
+    _tcfg = (cfg or {}).get("transform", {})
+    if _tcfg.get("clear_unmapped_slots", True):
         mapped = {op.get("slot") for op in (ops or []) if op.get("slot")}
         state["slide_xml"] = _clear_unmapped(state["slide_xml"], mapped)
+    # 이름 없는 플레이스홀더 패턴 텍스트도 비움(config.transform.clear_placeholder_patterns)
+    state["slide_xml"] = _clear_placeholders(state["slide_xml"],
+                                             _tcfg.get("clear_placeholder_patterns"))
     # 미설치/비렌더 폰트 리맵(config.fonts.remap) — 템플릿 자체 폰트도 일괄 치환
     state["slide_xml"] = _remap_fonts(state["slide_xml"], (cfg or {}).get("fonts", {}).get("remap"))
     _save(template_dir, slide_path, state["slide_xml"])

@@ -953,3 +953,20 @@ deep 추출로 그룹 텍스트가 보이게 됐으므로, 초안 콘텐츠를 �
 
 폰트 zip 38종 설치 완료. 남은 미설치: 굴림/맑은고딕(Windows 기본), 산돌고딕B, 뫼비우스/공체/
 가는각진제목체(→리맵으로 대체), 나눔스퀘어.
+
+---
+
+# 라운드 — (B/B-2) 미매핑 슬롯 + 플레이스홀더 패턴 비우기
+
+스냅샷에서 발견한 "플레이스홀더 잔존" 해결.
+- (B) transform._clear_unmapped: recipe 미매핑 named 슬롯(sp/grpSp 텍스트) 플레이스홀더 비움.
+  config.transform.clear_unmapped_slots(기본 true). 표/이미지 슬롯 보존.
+- (B-2) transform._clear_placeholders: 이름 없는 텍스트라도 패턴("…입력하세요"/제목/내용/메인 타이틀)
+  매칭 시 비움. config.transform.clear_placeholder_patterns(기본 목록). 정상 콘텐츠 보존.
+- 검증 [12](named 미매핑 비움·도형 보존), [13](이름없는 패턴 비움·정상 보존). 6종 PASS.
+- 실 샘플 스냅샷(gs 렌더): "내용을 입력하세요"·브레드크럼 "제목을 입력해주세요" 제거 확인.
+
+## 남은 시각 이슈(엔진 아닌 요인)
+- "KEY POINT" 라벨이 좁은 박스에서 줄바꿈("KE POIN T") — 고정 디자인 라벨 + LibreOffice 폰트 메트릭
+  (PowerPoint 실렌더와 다를 수 있음). 콘텐츠 아님.
+- 빈 공간 多 — 순환 테스트(slide11=내용 풍부를 asis_tobe로 강제) 산물. 실제 초안+맞는 타입이면 해소.
