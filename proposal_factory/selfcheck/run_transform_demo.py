@@ -441,6 +441,38 @@ def main():
         assert_true('typeface="공체 Bold"' not in fx, "공체 제거됨", errors)
         assert_true('typeface="KoPub돋움체_Pro Bold"' in fx, "KoPub 으로 리맵됨", errors)
 
+        print("\n[12] 미매핑 슬롯 플레이스홀더 비우기")
+        # slot:filled(매핑) + slot:left(미매핑, 플레이스홀더) 슬라이드
+        ph_slide = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+                    '<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+                    'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" '
+                    'xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">'
+                    '<p:cSld><p:spTree>'
+                    '<p:nvGrpSpPr><p:cNvPr id="1" name="G"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>'
+                    '<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>'
+                    '<p:sp><p:nvSpPr><p:cNvPr id="2" name="slot:filled"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr>'
+                    '<p:spPr><a:xfrm><a:off x="100" y="100"/><a:ext cx="500" cy="200"/></a:xfrm></p:spPr>'
+                    '<p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="ko-KR"/><a:t>(원본A)</a:t></a:r></a:p></p:txBody></p:sp>'
+                    '<p:sp><p:nvSpPr><p:cNvPr id="3" name="slot:left"/><p:cNvSpPr txBox="1"/><p:nvPr/></p:nvSpPr>'
+                    '<p:spPr><a:xfrm><a:off x="100" y="320"/><a:ext cx="500" cy="200"/></a:xfrm></p:spPr>'
+                    '<p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="ko-KR"/><a:t>내용을 입력하세요</a:t></a:r></a:p></p:txBody></p:sp>'
+                    '</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>')
+        ptree = os.path.join(tmp, "ptree")
+        for rel, content in {"[Content_Types].xml": CONTENT_TYPES, "ppt/presentation.xml": PRESENTATION_XML,
+                             "ppt/slides/slide1.xml": ph_slide,
+                             "ppt/slides/_rels/slide1.xml.rels": SLIDE1_RELS}.items():
+            p = os.path.join(ptree, rel)
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            open(p, "w", encoding="utf-8").write(content)
+        pr = {"type": "p", "template_slide": "ppt/slides/slide1.xml",
+              "ops": [{"op": "text_inject", "slot": "filled", "from": "v"}]}  # left 는 미매핑
+        pout = os.path.join(tmp, "pout.pptx")
+        transform.apply(pr, {"v": "채운값X"}, ptree, pout, CFG)   # CFG.transform.clear_unmapped_slots=true
+        px = zipfile.ZipFile(pout).read("ppt/slides/slide1.xml").decode("utf-8")
+        assert_true("채운값X" in px, "매핑 슬롯 채워짐", errors)
+        assert_true("내용을 입력하세요" not in px, "미매핑 슬롯 플레이스홀더 비워짐", errors)
+        assert_true('name="slot:left"' in px, "미매핑 슬롯 도형은 보존(텍스트만 비움)", errors)
+
         print("\n=== TRANSFORM SELF-CHECK:",
               "PASS" if not errors else f"FAIL ({len(errors)})", "===")
         sys.exit(0 if not errors else 1)

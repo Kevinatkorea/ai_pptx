@@ -432,6 +432,23 @@ _OPS = {
 }
 
 
+def _clear_unmapped(xml, mapped_keys):
+    """recipe 가 채우지 않은 slot:<key> 텍스트 슬롯(sp/grpSp)의 플레이스홀더를 비운다.
+    표(graphicFrame)·이미지(pic) 슬롯은 보존. 출력에 '…입력하세요' 류가 남지 않게 한다."""
+    for key in set(re.findall(r'name="slot:([^"]+)"', xml)):
+        if key in mapped_keys:
+            continue
+        try:
+            st, en, blk, tag = _find_slot(xml, key)
+        except MissingSlot:
+            continue
+        if tag not in ("sp", "grpSp") or "<a:t>" not in blk:
+            continue
+        new_blk = re.sub(r'<a:t>[^<]*</a:t>', '<a:t></a:t>', blk)
+        xml = xml[:st] + new_blk + xml[en:]
+    return xml
+
+
 def _remap_fonts(xml, mapping):
     """슬라이드 XML 의 모든 typeface="X" 를 mapping[X] 로 치환(미설치/비렌더 폰트 대체).
     rPr/defRPr/endParaRPr 등 모든 폰트 참조에 적용. mapping 없으면 원본 그대로."""
@@ -473,6 +490,10 @@ def _apply_one(slide_path: str, ops: list, source_slots: dict,
             raise ValueError(f"unknown op: {kind}")
         fn(op, source_slots, state)
 
+    # recipe 가 안 채운 named 슬롯의 플레이스홀더 비우기(표/이미지 슬롯 제외)
+    if (cfg or {}).get("transform", {}).get("clear_unmapped_slots", True):
+        mapped = {op.get("slot") for op in (ops or []) if op.get("slot")}
+        state["slide_xml"] = _clear_unmapped(state["slide_xml"], mapped)
     # 미설치/비렌더 폰트 리맵(config.fonts.remap) — 템플릿 자체 폰트도 일괄 치환
     state["slide_xml"] = _remap_fonts(state["slide_xml"], (cfg or {}).get("fonts", {}).get("remap"))
     _save(template_dir, slide_path, state["slide_xml"])

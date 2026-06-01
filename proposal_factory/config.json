@@ -34,6 +34,7 @@
              "register_page_type_on_promote": true,
              "regenerate_on_promote": true},
   "daemon": {"processed_dir": "", "failed_dir": "", "auto_extract_slots": true},
+  "transform": {"clear_unmapped_slots": true},
   "render": {"soffice": "soffice", "dpi": 140},
   "notify": {"smtp_host": "", "from": "", "to": [""], "review_base_url": "http://proposal.local:8000/review"},
   "retention": {"snapshot_days": 90, "source_delete_days": 30},
