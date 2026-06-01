@@ -25,6 +25,10 @@
     "fallback_when_over_budget": "local_then_human",
     "author_recipe_on_new_type": true
   },
+  "fonts": {"remap": {"공체": "KoPub돋움체_Pro Medium", "공체 Light": "KoPub돋움체_Pro Medium",
+                       "공체 Medium": "KoPub돋움체_Pro Medium", "공체 Bold": "KoPub돋움체_Pro Bold",
+                       "뫼비우스 Regular": "KoPub돋움체_Pro Medium", "뫼비우스 Bold": "KoPub돋움체_Pro Bold",
+                       "가는각진제목체": "KoPub돋움체_Pro Bold"}},
   "assets": {"recipes_dir": "./assets/recipes",
              "page_types": "./assets/page_types.example.json",
              "register_page_type_on_promote": true,

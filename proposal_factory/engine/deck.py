@@ -168,6 +168,50 @@ def _repoint_presentation(tree, slide_ks):
         fh.write(rx)
 
 
+def validate(pptx_path):
+    """조립 결과 PPTX 의 OOXML 무결성 점검 → 문제 목록(빈 리스트면 정상).
+
+    검사: ① 모든 파트의 content-type 존재(Default 확장자 또는 Override),
+    ② 모든 .rels 의 내부 Target 이 실제 파트를 가리킴(dangling 없음),
+    ③ 슬라이드 XML 이 참조하는 r:id/r:embed 가 해당 .rels 에 정의됨.
+    """
+    issues = []
+    with zipfile.ZipFile(pptx_path) as z:
+        names = set(z.namelist())
+        try:
+            ct = z.read("[Content_Types].xml").decode("utf-8", "replace")
+        except KeyError:
+            return ["[Content_Types].xml 없음"]
+        defaults = {e.lower() for e in re.findall(r'<Default Extension="([^"]+)"', ct)}
+        overrides = set(re.findall(r'<Override PartName="([^"]+)"', ct))
+        for n in names:
+            if n.endswith("/") or n == "[Content_Types].xml" or "/_rels/" in n or n.endswith(".rels"):
+                continue
+            ext = n.rsplit(".", 1)[-1].lower() if "." in n else ""
+            if ("/" + n) not in overrides and ext not in defaults:
+                issues.append(f"content-type 누락: {n}")
+        for n in names:
+            if not n.endswith(".rels"):
+                continue
+            base = os.path.dirname(os.path.dirname(n))   # _rels 의 부모 디렉터리
+            rx = z.read(n).decode("utf-8", "replace")
+            # 이 .rels 가 기술하는 파트의 xml(r:id 사용처)
+            described = os.path.join(base, os.path.basename(n)[:-5])  # .rels 제거
+            ids = set(re.findall(r'Id="(rId\d+)"', rx))
+            for rid, tgt in re.findall(r'Id="(rId\d+)"[^>]*?Target="([^"]+)"', rx):
+                if tgt.startswith(("http://", "https://")) or 'TargetMode="External"' in rx:
+                    continue
+                resolved = os.path.normpath(os.path.join(base, tgt)).replace(os.sep, "/")
+                if resolved not in names:
+                    issues.append(f"rels 대상 없음: {n} -> {tgt}")
+            if described.replace(os.sep, "/") in names:
+                dx = z.read(described.replace(os.sep, "/")).decode("utf-8", "replace")
+                for used in re.findall(r'r:(?:id|embed)="(rId\d+)"', dx):
+                    if used not in ids:
+                        issues.append(f"미정의 r:id: {described} 의 {used}")
+    return issues
+
+
 def _prune(tree, keep_ks):
     """출력에 표시되지 않는 원본 템플릿 슬라이드와 고아 미디어를 제거해 파일을 줄인다.
 
@@ -182,6 +226,21 @@ def _prune(tree, keep_ks):
             rel = os.path.join(slidedir, "_rels", n + ".rels")
             if os.path.exists(rel):
                 os.remove(rel)
+    # 발표자 노트(notesSlides)는 표준 출력에 불필요 + 제거된 원본 슬라이드를 참조해 dangling 유발
+    # → 노트 파트 전부 삭제 + 남은 슬라이드 rels 의 notesSlide 관계 제거.
+    notesdir = os.path.join(tree, "ppt", "notesSlides")
+    if os.path.isdir(notesdir):
+        shutil.rmtree(notesdir)
+    relsdir = os.path.join(slidedir, "_rels")
+    if os.path.isdir(relsdir):
+        for rn in os.listdir(relsdir):
+            rp = os.path.join(relsdir, rn)
+            with open(rp, encoding="utf-8") as fh:
+                rx = fh.read()
+            rx2 = re.sub(r'<Relationship[^>]*notesSlide[^>]*/>', '', rx)
+            if rx2 != rx:
+                with open(rp, "w", encoding="utf-8") as fh:
+                    fh.write(rx2)
     # [Content_Types].xml: 제거된 슬라이드 Override 삭제
     ctp = os.path.join(tree, "[Content_Types].xml")
     with open(ctp, encoding="utf-8") as fh:
@@ -189,6 +248,7 @@ def _prune(tree, keep_ks):
     ct = re.sub(
         r'<Override PartName="/ppt/slides/slide(\d+)\.xml"[^>]*/>',
         lambda m: m.group(0) if int(m.group(1)) in set(keep_ks) else "", ct)
+    ct = re.sub(r'<Override PartName="/ppt/notesSlides/[^"]*"[^>]*/>', '', ct)  # 노트 제거
     with open(ctp, "w", encoding="utf-8") as fh:
         fh.write(ct)
     # presentation.xml.rels: 제거된 슬라이드 관계 삭제

@@ -65,6 +65,15 @@ def _parse_shape_block(blk, tag):
         rows = re.findall(r'<a:tr h="(\d+)"', blk)
         if rows:
             shp['table_h'] = sum(int(r) for r in rows)
+        # 셀 텍스트(verbatim) — 행별 셀 문자열 목록(표 콘텐츠 자동 입력용)
+        tbl = []
+        for tr in re.findall(r'<a:tr\b.*?</a:tr>', blk, re.S):
+            cells = []
+            for tc in re.findall(r'<a:tc>.*?</a:tc>', tr, re.S):
+                cells.append(''.join(re.findall(r'<a:t>([^<]*)</a:t>', tc)).strip())
+            tbl.append(cells)
+        if tbl:
+            shp['table'] = tbl
     return shp
 
 

@@ -924,3 +924,32 @@ deep 추출로 그룹 텍스트가 보이게 됐으므로, 초안 콘텐츠를 �
 
 ## 남은 것
 - 표 슬롯 자동 입력(table_rebuild — label/value 구조 추출), 실 .hwp 회귀, 비렌더 폰트 리맵.
+
+---
+
+# 라운드 — 표 자동입력 / 폰트 리맵 / HWPX·.hwp / 실열람 검증 (4종)
+
+## A. 표 슬롯 자동 입력
+- geometry._parse_shape_block: graphicFrame 표 셀텍스트(rows) 추출 → shp["table"].
+- pipeline._draft_tables + build_page_source_slots: 초안 2열 표 → [{label,value}] verbatim 자동 입력
+  (헤더 제외). 복합/병합/단일열 표는 건너뜀(table_rebuild source 없으면 템플릿 표 보존).
+- 검증 [7f]: 2열 표 자동 입력, 3열 복합표 보존.
+
+## B. 폰트 리맵
+- config.fonts.remap(공체/뫼비우스/가는각진제목체 → KoPub). transform._remap_fonts 가 _apply_one
+  에서 typeface 전수 치환(템플릿 자체 폰트 포함). 실파일 slide3 공체 6→0 확인.
+- 검증 [transform 11]: 공체 → KoPub 리맵.
+
+## C. HWPX e2e / .hwp
+- HWPX 데몬 e2e 는 run_adapters_demo [10](사이드카+변환)에서 이미 커버. olefile 설치로 .hwp 경로 활성.
+- 바이너리 .hwp: olefile read-only → 합성 불가. 레코드 파서[4]·olefile 경계[9] 검증됨.
+  **실 round-trip 은 사용자 .hwp 샘플 필요**(문서화).
+
+## D. 실열람 정밀 확인
+- deck.validate: content-type/rels dangling/미정의 r:id 검사. 노트(notesSlides) 제거(원본 슬라이드
+  참조 dangling 방지 — 실 샘플에서 발견·수정).
+- 검증 [8b]: 합성 조립 출력 문제 0건. 실 Desktop 샘플 0건 + **soffice→PDF 렌더 성공(실열람 확인)**.
+- 6종 셀프체크 PASS.
+
+폰트 zip 38종 설치 완료. 남은 미설치: 굴림/맑은고딕(Windows 기본), 산돌고딕B, 뫼비우스/공체/
+가는각진제목체(→리맵으로 대체), 나눔스퀘어.

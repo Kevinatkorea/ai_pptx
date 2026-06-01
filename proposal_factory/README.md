@@ -98,6 +98,9 @@ proposal_factory/
   - **`group_fill` op**: 슬롯이 그룹(`grpSp`)이면 내부 텍스트박스들을 입력 배열로 **순서대로 verbatim** 채운다(text_inject 는 단일 텍스트박스 전용). 그룹의 비텍스트 도형/구조는 보존.
   - **단일 파일 덱 조립 + 초안 이미지 carry-over**(`engine/deck.py`): `run_deck(out_deck=..., draft_pptx=...)` 로 표준 템플릿 기반 1:1 단일 PPTX 를 조립한다. 각 페이지는 그 유형의 표준 슬라이드를 복제·변환한 새 슬라이드가 되고(presentation sldIdLst 재지정), 초안 슬라이드의 이미지(`<p:pic>`)는 **위치 그대로** 옮겨진다(미디어 namespaced·rels 재매핑). 실제 SKB 템플릿(디자인가이드2.0)으로 구조 검증 완료.
   - 콘텐츠가 없는 op 는 건너뛴다(템플릿 자리 보존): `image_reuse`/`table_rebuild` 는 source 없으면 no-op → 이미지는 carry-over, 표는 템플릿 유지.
+  - **표 슬롯 자동 입력**: 초안의 **2열(label/value) 표**를 `geometry` 가 셀텍스트로 추출 → `table_rebuild` 슬롯에 `[{label,value}]` **verbatim** 자동 입력. 복합/병합 표는 건너뜀(템플릿 표 보존).
+  - **폰트 리맵**(`config.fonts.remap`): 미설치/비렌더 폰트(공체·뫼비우스·가는각진제목체 등)를 설치 폰트(KoPub 등)로 transform 단계에서 일괄 치환(템플릿 자체 폰트 포함). 어느 PC에서 열든 대체 깨짐 방지.
+  - **조립 출력 검증**(`deck.validate`): content-type 누락·rels dangling 대상·미정의 r:id 0 보장. 노트(notesSlides)는 표준 출력에서 제거(원본 슬라이드 참조 dangling 방지). soffice 설치 시 PDF 렌더로 실열람 확인 가능.
 
 HTTP 는 표준 라이브러리(urllib) 만 사용. anthropic SDK 등 외부 의존성 없음.
 

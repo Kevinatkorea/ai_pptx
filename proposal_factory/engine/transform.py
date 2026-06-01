@@ -432,6 +432,15 @@ _OPS = {
 }
 
 
+def _remap_fonts(xml, mapping):
+    """슬라이드 XML 의 모든 typeface="X" 를 mapping[X] 로 치환(미설치/비렌더 폰트 대체).
+    rPr/defRPr/endParaRPr 등 모든 폰트 참조에 적용. mapping 없으면 원본 그대로."""
+    if not mapping:
+        return xml
+    return re.sub(r'typeface="([^"]*)"',
+                  lambda m: 'typeface="%s"' % mapping.get(m.group(1), m.group(1)), xml)
+
+
 def _apply_one(slide_path: str, ops: list, source_slots: dict,
                template_dir: str, cfg: dict) -> None:
     """한 슬라이드(slide_path)에 ops 를 순서대로 적용하고 트리에 저장(in-place)."""
@@ -464,6 +473,8 @@ def _apply_one(slide_path: str, ops: list, source_slots: dict,
             raise ValueError(f"unknown op: {kind}")
         fn(op, source_slots, state)
 
+    # 미설치/비렌더 폰트 리맵(config.fonts.remap) — 템플릿 자체 폰트도 일괄 치환
+    state["slide_xml"] = _remap_fonts(state["slide_xml"], (cfg or {}).get("fonts", {}).get("remap"))
     _save(template_dir, slide_path, state["slide_xml"])
     _save(template_dir, rels_path, state["rels_xml"])
 

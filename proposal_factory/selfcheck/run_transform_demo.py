@@ -419,6 +419,28 @@ def main():
         assert_true(b0["x"] == 200 and b0["y"] == 200,
                     f"deep: 절대좌표 변환 (200,200) 실제 ({b0['x']},{b0['y']})", errors)
 
+        print("\n[11] 폰트 리맵 — 미설치/비렌더 폰트 → 설치 폰트")
+        # 공체 typeface 를 가진 슬롯 슬라이드
+        font_slide = grp_slide.replace('<a:rPr lang="ko-KR"/>',
+                                       '<a:rPr lang="ko-KR"><a:latin typeface="공체 Bold"/></a:rPr>')
+        ftree = os.path.join(tmp, "ftree")
+        for rel, content in {"[Content_Types].xml": CONTENT_TYPES,
+                             "ppt/presentation.xml": PRESENTATION_XML,
+                             "ppt/slides/slide1.xml": font_slide,
+                             "ppt/slides/_rels/slide1.xml.rels": SLIDE1_RELS}.items():
+            p = os.path.join(ftree, rel)
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            open(p, "w", encoding="utf-8").write(content)
+        cfg_remap = dict(CFG)
+        cfg_remap["fonts"] = {"remap": {"공체 Bold": "KoPub돋움체_Pro Bold"}}
+        fr = {"type": "f", "template_slide": "ppt/slides/slide1.xml",
+              "ops": [{"op": "group_fill", "slot": "grp", "from": "x"}]}
+        fout = os.path.join(tmp, "fout.pptx")
+        transform.apply(fr, {"x": ["A", "B"]}, ftree, fout, cfg_remap)
+        fx = zipfile.ZipFile(fout).read("ppt/slides/slide1.xml").decode("utf-8")
+        assert_true('typeface="공체 Bold"' not in fx, "공체 제거됨", errors)
+        assert_true('typeface="KoPub돋움체_Pro Bold"' in fx, "KoPub 으로 리맵됨", errors)
+
         print("\n=== TRANSFORM SELF-CHECK:",
               "PASS" if not errors else f"FAIL ({len(errors)})", "===")
         sys.exit(0 if not errors else 1)

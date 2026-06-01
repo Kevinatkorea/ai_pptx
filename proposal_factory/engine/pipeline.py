@@ -82,6 +82,20 @@ def _text_blocks(shapes):
     return blocks
 
 
+def _draft_tables(draft_shapes):
+    """초안의 2열(label/value) 표만 [{label,value}, ...] 로 추출(verbatim). 헤더 1행 제외.
+    복합/단일열/병합 표는 건너뛴다(table_rebuild 가 source 없으면 템플릿 표 보존)."""
+    out = []
+    for s in draft_shapes:
+        rows = s.get("table")
+        if not rows or len(rows) < 2:
+            continue
+        body = rows[1:]  # 헤더 제외
+        if all(len(r) == 2 for r in body) and any(r[0] or r[1] for r in body):
+            out.append([{"label": r[0], "value": r[1]} for r in body])
+    return out
+
+
 def build_page_source_slots(draft_shapes, recipe, gateway=None):
     """초안 페이지 → recipe 의 text_inject/group_fill 슬롯용 source_slots(**문구 verbatim**).
 
@@ -89,9 +103,19 @@ def build_page_source_slots(draft_shapes, recipe, gateway=None):
     (모델은 인덱스만 결정 → 문구 변경 불가). text_inject=단일 문자열, group_fill=문자열 배열.
     gateway 없거나 실패하면 순서 기반 폴백. 반환: (source_slots, method∈{ai,positional,none}).
     """
+    # 표 슬롯 자동 입력: 초안의 2열(label/value) 표를 verbatim 으로 채운다(복합 표는 보존).
+    table_src = _draft_tables(draft_shapes)
+    table_ops = [op for op in recipe.get("ops", [])
+                 if op.get("op") == "table_rebuild" and op.get("slot") and op.get("from")]
+    table_filled = {}
+    for op in table_ops:
+        rows = table_src.pop(0) if table_src else None
+        if rows:
+            table_filled[op["from"]] = rows
+
     ops = [op for op in recipe.get("ops", [])
            if op.get("op") in ("text_inject", "group_fill") and op.get("slot") and op.get("from")]
-    if not ops:
+    if not ops and not table_filled:
         return {}, "none"
     blocks = _text_blocks(draft_shapes)
     slots = [{"key": op["slot"], "op": op["op"]} for op in ops]
@@ -127,6 +151,7 @@ def build_page_source_slots(draft_shapes, recipe, gateway=None):
             else:
                 src[op["from"]] = [blocks[ptr]["text"]]
             ptr += 1
+    src.update(table_filled)   # 표 슬롯 자동 입력(2열 verbatim) 병합
     return src, method
 
 

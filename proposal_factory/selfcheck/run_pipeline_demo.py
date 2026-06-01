@@ -532,6 +532,25 @@ def main():
         else:
             print("   ✓ 통과 (group_fill=verbatim 배열, text_inject=단일, 폴백도 동작)")
 
+        # (f) 표 슬롯 자동 입력 — 초안 2열 표 → [{label,value}] verbatim, 복합표는 보존
+        recipe_tbl = {"type": "t", "template_slide": "ppt/slides/slide1.xml",
+                      "ops": [{"op": "table_rebuild", "slot": "company", "from": "fields"}]}
+        draft_tbl = [
+            {"tag": "graphicFrame", "name": "t2", "x": 0, "y": 0, "cx": 9, "cy": 9, "texts": [],
+             "table": [["구분", "내용"], ["회사명", "주식회사 가나다"], ["대표", "홍길동"]]},
+            {"tag": "graphicFrame", "name": "t3", "x": 0, "y": 0, "cx": 9, "cy": 9, "texts": [],
+             "table": [["a", "b", "c"], ["1", "2", "3"]]},   # 3열 복합 → 건너뜀
+        ]
+        src_t, _ = pipeline.build_page_source_slots(draft_tbl, recipe_tbl, None)
+        fields = src_t.get("fields")
+        ok7f = (fields == [{"label": "회사명", "value": "주식회사 가나다"},
+                           {"label": "대표", "value": "홍길동"}])
+        print(f"\n[7f] 표 자동 입력 → fields={fields}")
+        if not ok7f:
+            print(f"   ✗ 실패: {src_t}"); ok = False
+        else:
+            print("   ✓ 통과 (2열 표 verbatim 자동 입력, 헤더 제외, 3열 복합표 보존)")
+
         # 8) 단일 파일 덱 조립 + 초안 이미지 carry-over (1:1)
         from run_transform_demo import build_template_2slide
         tmpl_tree = os.path.join(tmp5, "deck_tmpl")
@@ -612,6 +631,15 @@ def main():
             print(f"   ✗ 실패: carried={carried} p0텍스트={'AAA브레드' in x_p0}"); ok = False
         else:
             print(f"   ✓ 통과 (1:1 단일덱 조립·verbatim·이미지 carry {len(carried)}개, 구조 유효)")
+
+        # 8b) 엄격 OOXML 검증(content-type/rels 대상/미정의 r:id 0건)
+        from engine import deck as _deck
+        issues = _deck.validate(out_deck)
+        print(f"\n[8b] 조립 출력 엄격 검증 → 문제 {len(issues)}건")
+        if issues:
+            print(f"   ✗ 실패: {issues[:5]}"); ok = False
+        else:
+            print("   ✓ 통과 (content-type·rels 대상·r:id 무결)")
     finally:
         shutil.rmtree(tmp5, ignore_errors=True)
 
